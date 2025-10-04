@@ -1,0 +1,10 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Backend con FastAPI y uv"
+authors = [{ name = "Tu Nombre" }]
+requires-python = ">=3.11"
+
+[tool.uv]
+# uv creará y manejará automáticamente un entorno virtual.
+# Puedes agregar dependencias con "uv add"
