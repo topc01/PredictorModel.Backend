@@ -37,7 +37,6 @@
     }
   ],
   "cpu": "256",
-  "enableFaultInjection": false,
   "executionRoleArn": "arn:aws:iam::933814332672:role/ecsTaskExecutionRole",
   "family": "topc-task",
   "memory": "512",
