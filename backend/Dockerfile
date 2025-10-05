@@ -2,12 +2,17 @@ FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Update packages and install curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 
+# Install uv
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml ./
-RUN uv sync
+# Copy dependency files for better caching
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
 
 COPY src ./src
 

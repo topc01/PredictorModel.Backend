@@ -4,3 +4,4 @@ __pycache__/
 .env
 .cache/
 *.log
+# Keep uv.lock tracked in git for reproducible builds
