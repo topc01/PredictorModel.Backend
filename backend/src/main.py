@@ -10,6 +10,10 @@ async def root():
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     return {"status": "healthy"}
+  
+@app.get("/hello/{name}", status_code=status.HTTP_200_OK)
+async def name(name: str):
+    return {"message": f"Hello {name}"}
 
 if __name__ == "__main__":
     import uvicorn
