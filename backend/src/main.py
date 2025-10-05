@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 
 # Create FastAPI app instance
 app = FastAPI(title="Predictor Model Backend", version="0.1.0")
@@ -7,7 +7,7 @@ app = FastAPI(title="Predictor Model Backend", version="0.1.0")
 async def root():
     return {"message": "Backend listo para FastAPI con hot reload."}
 
-@app.get("/health")
+@app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     return {"status": "healthy"}
 
