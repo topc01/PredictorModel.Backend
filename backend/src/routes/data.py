@@ -413,6 +413,13 @@ async def upload_data(
     
     El archivo debe contener una hoja con las 5 complejidades y sus respectivos datos.
     """
+    # Validar que se proporcionó un nombre de archivo
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se proporcionó un nombre de archivo"
+        )
+    
     # Validar extensión del archivo
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(
