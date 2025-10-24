@@ -4,4 +4,4 @@ from src.routes import data
 
 router = APIRouter()
 
-router.include_router(data.router, prefix="/data", tags=["data"])
+router.include_router(data.router, prefix="/data")
