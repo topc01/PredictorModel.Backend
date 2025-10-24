@@ -1,5 +1,6 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from src.routes import router
 
 origins = [
     "http://localhost:5173",
@@ -28,6 +29,8 @@ async def health_check():
 @app.get("/hello/{name}", status_code=status.HTTP_200_OK)
 async def name(name: str):
     return {"message": f"Hello {name}"}
+
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
