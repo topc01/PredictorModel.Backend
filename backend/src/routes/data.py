@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime
 import pandas as pd
@@ -532,3 +533,76 @@ async def upload_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno al procesar el archivo: {str(e)}"
         )
+
+@router.get(
+    "/template",
+    summary="Descargar plantilla Excel",
+    description="""
+    Descarga una plantilla de Excel con el formato correcto para subir datos.
+    
+    La plantilla incluye:
+    - Todas las columnas requeridas
+    - Filas de ejemplo para cada complejidad
+    - Formato correcto de datos
+    
+    Puedes usar esta plantilla como base para subir tus propios datos.
+    """,
+    responses={
+        200: {
+            "description": "Plantilla Excel descargada correctamente",
+            "content": {
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+        }
+    }
+)
+async def download_template():
+    """
+    Genera y descarga una plantilla de Excel con el formato correcto.
+    """
+    # Crear DataFrame con datos de ejemplo
+    data = {
+        'complejidad': ['alta', 'baja', 'media', 'neonatología', 'pediatria'],
+        'demanda_pacientes': [50, 30, 40, 15, 25],
+        'estancia (días)': [5.2, 3.5, 4.5, 8.0, 4.0],
+        'tipo de paciente_No Qx': [0.6, 0.8, 0.7, 0.9, 0.75],
+        'tipo de paciente Qx': [0.4, 0.2, 0.3, 0.1, 0.25],
+        'tipo de ingreso_No Urgente': [0.7, 0.85, 0.75, 0.5, 0.6],
+        'tipo de ingreso Urgente': [0.3, 0.15, 0.25, 0.5, 0.4],
+        'fecha ingreso completa': ['2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20']
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Crear archivo Excel en memoria
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Datos Semanales')
+        
+        # Obtener el workbook y worksheet para formatear
+        workbook = writer.book
+        worksheet = writer.sheets['Datos Semanales']
+        
+        # Ajustar ancho de columnas
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    
+    # Retornar como respuesta de descarga
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=template_datos_semanales.xlsx"
+        }
+    )
