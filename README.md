@@ -5,6 +5,7 @@ FastAPI backend for hospital bed occupancy prediction, deployed on AWS with cost
 ## Overview
 
 This backend service provides RESTful APIs for:
+
 - Uploading weekly hospital complexity data (Excel files)
 - Processing and storing predictions
 - Managing patient demand forecasts
@@ -42,11 +43,13 @@ This backend service provides RESTful APIs for:
 ### Setup
 
 1. **Clone the repository**:
+
    ```bash
    cd /Users/topc/Projects/AI-Predictor/PredictorModel.Backend
    ```
 
 2. **Install dependencies**:
+
    ```bash
    cd backend
    pip install uv
@@ -54,14 +57,15 @@ This backend service provides RESTful APIs for:
    ```
 
 3. **Run the development server**:
+
    ```bash
    uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 4. **Access the API**:
-   - API: http://localhost:8000
-   - Interactive docs: http://localhost:8000/docs
-   - OpenAPI spec: http://localhost:8000/openapi.json
+   - API: <http://localhost:8000>
+   - Interactive docs: <http://localhost:8000/docs>
+   - OpenAPI spec: <http://localhost:8000/openapi.json>
 
 ### Using Docker Compose
 
@@ -69,16 +73,18 @@ This backend service provides RESTful APIs for:
 docker-compose up
 ```
 
-The API will be available at http://localhost:8000
+The API will be available at <http://localhost:8000>
 
 ## API Endpoints
 
 ### Health Check
+
 ```http
 GET /health
 ```
 
 ### Submit Weekly Data
+
 ```http
 POST /send
 Content-Type: application/json
@@ -91,6 +97,7 @@ Content-Type: application/json
 ```
 
 ### Upload Excel File
+
 ```http
 POST /upload
 Content-Type: multipart/form-data
@@ -99,6 +106,7 @@ file: [Excel file]
 ```
 
 ### Download Template
+
 ```http
 GET /template
 ```
@@ -245,11 +253,13 @@ Files are organized by date for easy management and lifecycle policies.
 ### Local Development Issues
 
 **Port already in use**:
+
 ```bash
 lsof -ti:8000 | xargs kill -9
 ```
 
 **Dependencies not installing**:
+
 ```bash
 rm -rf .venv
 uv sync --force
@@ -281,6 +291,7 @@ Internal project for UC Christus.
 ## Support
 
 For issues or questions:
+
 - Check CloudWatch logs
 - Review `/docs` endpoint for API documentation
 - See [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment help
@@ -288,4 +299,3 @@ For issues or questions:
 ---
 
 **Built with**: FastAPI, AWS ECS, Terraform, Python 3.11
-

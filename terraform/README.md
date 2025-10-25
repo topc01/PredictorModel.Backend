@@ -115,17 +115,20 @@ Use this URL to update your Amplify frontend configuration.
 ## Important Notes
 
 ### VPC Endpoints
+
 - **S3 Gateway Endpoint**: Free, no hourly charges
 - **Interface Endpoints**: ~$0.01/hour per endpoint per AZ
 - Eliminates need for NAT Gateway ($0.045/hour + data transfer costs)
 
 ### Fargate Spot
+
 - 70% cheaper than regular Fargate
 - Tasks can be interrupted with 2-minute warning
 - Suitable for stateless, fault-tolerant workloads
 - Automatic fallback to regular Fargate if Spot capacity unavailable
 
 ### API Gateway HTTP API
+
 - Lower cost than REST API (~$1 per million requests)
 - Lower latency
 - Built-in CORS support
@@ -147,12 +150,14 @@ After applying, Terraform provides important outputs:
 For production, configure remote state in S3:
 
 1. Create S3 bucket for state:
+
    ```bash
    aws s3 mb s3://predictor-model-terraform-state
    aws s3api put-bucket-versioning --bucket predictor-model-terraform-state --versioning-configuration Status=Enabled
    ```
 
 2. Create DynamoDB table for state locking:
+
    ```bash
    aws dynamodb create-table --table-name predictor-model-terraform-locks \
      --attribute-definitions AttributeName=LockID,AttributeType=S \
@@ -163,6 +168,7 @@ For production, configure remote state in S3:
 3. Uncomment backend configuration in `backend.tf`
 
 4. Migrate state:
+
    ```bash
    terraform init -migrate-state
    ```
@@ -186,16 +192,19 @@ terraform destroy
 ## Troubleshooting
 
 ### ECS Tasks Not Starting
+
 - Check CloudWatch logs: `/ecs/predictor-model-{env}-backend`
 - Verify ECR image exists and is accessible
 - Check VPC endpoint connectivity
 
 ### API Gateway Connection Issues
+
 - Verify VPC Link status is AVAILABLE
 - Check security group rules
 - Ensure ECS service is running in private subnets
 
 ### S3 Access Issues
+
 - Verify IAM task role has S3 permissions
 - Check S3 Gateway Endpoint route table association
 - Ensure bucket names are correctly configured in environment variables
@@ -203,4 +212,3 @@ terraform destroy
 ## Support
 
 For issues or questions, refer to the project documentation or contact the DevOps team.
-
