@@ -1,9 +1,15 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime
 import pandas as pd
 import io
+import json
+import uuid
+import logging
+from src.s3_client import get_s3_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["Data"],
@@ -337,15 +343,47 @@ async def post_data(
     
     Este endpoint recibe datos históricos de la semana anterior para las 5 complejidades
     y los valida antes de procesarlos para predicciones futuras.
+    
+    Los datos se guardan en S3 para procesamiento posterior.
     """
     try:
-        # Aquí puedes procesar los datos recibidos
-        return WeeklyDataResponse(
-            message="Datos recibidos correctamente",
-            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=data.model_dump(by_alias=True)
+        data_dict = data.model_dump(by_alias=True)
+        
+        # Generate unique ID for this submission
+        submission_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        
+        # Prepare data for storage
+        storage_data = {
+            "submission_id": submission_id,
+            "timestamp": timestamp,
+            "data": data_dict
+        }
+        
+        # Save to S3
+        s3_client = get_s3_client()
+        s3_key = f"submissions/{timestamp[:10]}/{submission_id}.json"
+        
+        success = s3_client.upload_file(
+            file_content=json.dumps(storage_data, indent=2).encode("utf-8"),
+            key=s3_key,
+            bucket_type="data",
+            content_type="application/json"
         )
+        
+        if not success:
+            logger.warning(f"Failed to save data to S3, but continuing...")
+        else:
+            logger.info(f"Data saved to S3: {s3_key}")
+        
+        return WeeklyDataResponse(
+            message="Datos recibidos y guardados correctamente",
+            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
+            data=data_dict
+        )
+        
     except Exception as e:
+        logger.error(f"Error processing data: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error procesando los datos: {str(e)}"
@@ -513,11 +551,48 @@ async def upload_data(
                 detail=f"Error de validación de datos: {e.errors()}"
             )
         
+        # Save original file to S3
+        s3_client = get_s3_client()
+        file_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        s3_key = f"uploads/{timestamp[:10]}/{file_id}_{file.filename}"
+        
+        # Save original Excel file to S3
+        success = s3_client.upload_file(
+            file_content=contents,
+            key=s3_key,
+            bucket_type="files",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+        if success:
+            logger.info(f"Uploaded file to S3: {s3_key}")
+        else:
+            logger.warning(f"Failed to upload file to S3, but continuing...")
+        
+        # Save processed data to S3
+        data_dict = validated_data.model_dump(by_alias=True)
+        data_storage = {
+            "file_id": file_id,
+            "filename": file.filename,
+            "timestamp": timestamp,
+            "s3_key": s3_key,
+            "data": data_dict
+        }
+        
+        data_s3_key = f"processed/{timestamp[:10]}/{file_id}.json"
+        s3_client.upload_file(
+            file_content=json.dumps(data_storage, indent=2).encode("utf-8"),
+            key=data_s3_key,
+            bucket_type="data",
+            content_type="application/json"
+        )
+        
         # Retornar respuesta exitosa
         return WeeklyDataResponse(
-            message="Archivo procesado correctamente",
+            message=f"Archivo procesado y guardado correctamente (ID: {file_id})",
             complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=validated_data.model_dump(by_alias=True)
+            data=data_dict
         )
         
     except pd.errors.EmptyDataError:
