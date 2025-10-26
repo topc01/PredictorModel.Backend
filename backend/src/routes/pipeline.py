@@ -18,7 +18,6 @@ from ..utils.storage import storage_manager
 
 
 router = APIRouter(
-    prefix="/pipeline",
     tags=["Pipeline"],
     responses={
         404: {"description": "No encontrado"},
