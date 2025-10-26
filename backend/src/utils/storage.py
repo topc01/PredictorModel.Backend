@@ -162,7 +162,7 @@ class StorageManager:
 # Can be configured via environment variables
 _storage_type = os.getenv("STORAGE_TYPE", "local")
 _storage_base_path = os.getenv("STORAGE_BASE_PATH", "./data")
-_s3_bucket = os.getenv("S3_BUCKET", None)
+_s3_bucket = os.getenv("S3_DATA_BUCKET", None)
 
 storage_manager = StorageManager(
     storage_type=_storage_type,
