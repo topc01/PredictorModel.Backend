@@ -375,11 +375,11 @@ async def post_data(
     
     | complejidad  | demanda_pacientes | estancia (días) | tipo de paciente_No Qx | ... |
     |--------------|-------------------|-----------------|------------------------|-----|
-    | alta         | 50                | 5.2             | 0.6                    | ... |
-    | baja         | 30                | 3.5             | 0.8                    | ... |
-    | media        | 40                | 4.5             | 0.7                    | ... |
-    | neonatología | 15                | 8.0             | 0.9                    | ... |
-    | pediatria    | 25                | 4.0             | 0.75                   | ... |
+    | alta         | 50                | 5               | 6                      | ... |
+    | baja         | 30                | 3               | 8                      | ... |
+    | media        | 40                | 4               | 7                      | ... |
+    | neonatología | 15                | 8               | 9                      | ... |
+    | pediatria    | 25                | 4               | 75                     | ... |
     
     **Validaciones:**
     - Debe contener las 5 complejidades
@@ -655,6 +655,6 @@ async def get_last_date():
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
-      detail=f"No se encontraron datos semanales: {str(e)}"
+      detail="No se encontraron datos semanales"
     )
   return {"last_date": df["fecha ingreso completa"].max()}
