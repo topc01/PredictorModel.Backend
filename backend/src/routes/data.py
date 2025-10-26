@@ -1,426 +1,149 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+"""
+Pipeline routes for data cleaning and processing.
+
+These endpoints handle the initial Excel processing and data cleaning pipeline.
+"""
+
+from fastapi import APIRouter, HTTPException, status, File, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator, ValidationError
-from datetime import datetime
+from pydantic import BaseModel, Field
+from typing import Dict, Optional
 import pandas as pd
 import io
+import zipfile
+from datetime import datetime
+
+from ..pipeline.data_cleaner import procesar_excel_completo
+from ..utils.storage import storage_manager
+
 
 router = APIRouter(
     tags=["Data"],
     responses={
         404: {"description": "No encontrado"},
+        400: {"description": "Error de procesamiento"},
         422: {"description": "Error de validación"},
     },
 )
 
-class WeeklyComplexityData(BaseModel):
-    """
-    Datos semanales para una complejidad específica.
-    
-    Contiene información histórica de la semana anterior para realizar predicciones.
-    """
-    demanda_pacientes: float = Field(
-        ..., 
-        description="Cantidad real de pacientes de la semana pasada",
-        gt=0,
-        examples=[50, 75, 100]
-    )
-    estancia__días_: float = Field(
-        ..., 
-        alias='estancia (días)', 
-        description="Promedio de días de estancia hospitalaria de la semana pasada",
-        gt=0,
-        examples=[5.2, 7.8, 3.5]
-    )
-    tipo_de_paciente_No_Qx: float = Field(
-        ..., 
-        alias='tipo de paciente_No Qx', 
-        description="Proporción de pacientes no quirúrgicos (0-1)",
-        ge=0,
-        le=1,
-        examples=[0.6, 0.45, 0.7]
-    )
-    tipo_de_paciente_Qx: float = Field(
-        ..., 
-        alias='tipo de paciente Qx', 
-        description="Proporción de pacientes quirúrgicos (0-1)",
-        ge=0,
-        le=1,
-        examples=[0.4, 0.55, 0.3]
-    )
-    tipo_de_ingreso_No_Urgente: float = Field(
-        ..., 
-        alias='tipo de ingreso_No Urgente', 
-        description="Proporción de ingresos no urgentes/programados (0-1)",
-        ge=0,
-        le=1,
-        examples=[0.7, 0.65, 0.8]
-    )
-    tipo_de_ingreso_Urgente: float = Field(
-        ..., 
-        alias='tipo de ingreso Urgente', 
-        description="Proporción de ingresos urgentes (0-1)",
-        ge=0,
-        le=1,
-        examples=[0.3, 0.35, 0.2]
-    )
-    fecha_ingreso_completa: str = Field(
-        ..., 
-        alias='fecha ingreso completa', 
-        description="Fecha de ingreso de los datos en formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)",
-        examples=["2025-10-20", "2025-10-20T00:00:00"]
-    )
-    
-    class Config:
-        populate_by_name = True
-        json_schema_extra = {
-            "example": {
-                "demanda_pacientes": 50,
-                "estancia (días)": 5.2,
-                "tipo de paciente_No Qx": 0.6,
-                "tipo de paciente Qx": 0.4,
-                "tipo de ingreso_No Urgente": 0.7,
-                "tipo de ingreso Urgente": 0.3,
-                "fecha ingreso completa": "2025-10-20"
-            }
-        }
-    
-    @field_validator('fecha_ingreso_completa')
-    @classmethod
-    def validate_fecha(cls, v: str) -> str:
-        """Valida que la fecha tenga un formato válido"""
-        try:
-            # Intenta parsear la fecha para verificar que es válida
-            datetime.fromisoformat(v.replace('Z', '+00:00'))
-            return v
-        except ValueError:
-            raise ValueError(f"Formato de fecha inválido: {v}. Use formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)")
 
-class WeeklyDataRequest(BaseModel):
-    """
-    Solicitud de datos semanales para todas las complejidades hospitalarias.
-    
-    Este modelo agrupa los datos históricos de las 5 complejidades principales
-    para realizar predicciones de demanda hospitalaria.
-    """
-    alta: WeeklyComplexityData = Field(
+class PipelineProcessResponse(BaseModel):
+    """Respuesta del procesamiento del pipeline."""
+    message: str = Field(..., description="Mensaje de resultado")
+    complejidades_procesadas: Dict[str, str] = Field(
         ..., 
-        description="Datos de complejidad alta"
+        description="Diccionario con complejidades procesadas y su estado"
     )
-    baja: WeeklyComplexityData = Field(
+    archivos_generados: Dict[str, str] = Field(
         ..., 
-        description="Datos de complejidad baja"
+        description="Rutas de los archivos CSV generados"
     )
-    media: WeeklyComplexityData = Field(
+    estadisticas: Dict[str, Dict[str, int]] = Field(
         ..., 
-        description="Datos de complejidad media"
+        description="Estadísticas de cada complejidad procesada"
     )
-    neonatologia: WeeklyComplexityData = Field(
-        ..., 
-        alias='neonatología',
-        description="Datos de neonatología"
-    )
-    pediatria: WeeklyComplexityData = Field(
-        ..., 
-        description="Datos de pediatría"
-    )
-    
-    class Config:
-        populate_by_name = True
-        json_schema_extra = {
-            "example": {
-                "alta": {
-                    "demanda_pacientes": 50,
-                    "estancia (días)": 5.2,
-                    "tipo de paciente_No Qx": 0.6,
-                    "tipo de paciente Qx": 0.4,
-                    "tipo de ingreso_No Urgente": 0.7,
-                    "tipo de ingreso Urgente": 0.3,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "baja": {
-                    "demanda_pacientes": 30,
-                    "estancia (días)": 3.5,
-                    "tipo de paciente_No Qx": 0.8,
-                    "tipo de paciente Qx": 0.2,
-                    "tipo de ingreso_No Urgente": 0.85,
-                    "tipo de ingreso Urgente": 0.15,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "media": {
-                    "demanda_pacientes": 40,
-                    "estancia (días)": 4.5,
-                    "tipo de paciente_No Qx": 0.7,
-                    "tipo de paciente Qx": 0.3,
-                    "tipo de ingreso_No Urgente": 0.75,
-                    "tipo de ingreso Urgente": 0.25,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "neonatología": {
-                    "demanda_pacientes": 15,
-                    "estancia (días)": 8.0,
-                    "tipo de paciente_No Qx": 0.9,
-                    "tipo de paciente Qx": 0.1,
-                    "tipo de ingreso_No Urgente": 0.5,
-                    "tipo de ingreso Urgente": 0.5,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "pediatria": {
-                    "demanda_pacientes": 25,
-                    "estancia (días)": 4.0,
-                    "tipo de paciente_No Qx": 0.75,
-                    "tipo de paciente Qx": 0.25,
-                    "tipo de ingreso_No Urgente": 0.6,
-                    "tipo de ingreso Urgente": 0.4,
-                    "fecha ingreso completa": "2025-10-20"
-                }
-            }
-        }
-  
-class WeeklyDataResponse(BaseModel):
-    """Respuesta del endpoint de envío de datos"""
-    message: str = Field(..., description="Mensaje de confirmación")
-    complejidades_recibidas: list[str] = Field(..., description="Lista de complejidades procesadas")
-    data: dict = Field(..., description="Datos recibidos")
+    timestamp: str = Field(..., description="Timestamp del procesamiento")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "message": "Datos recibidos correctamente",
-                "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
-                "data": {
-                    "alta": {
-                        "demanda_pacientes": 50,
-                        "estancia (días)": 5.2,
-                        "tipo de paciente_No Qx": 0.6,
-                        "tipo de paciente Qx": 0.4,
-                        "tipo de ingreso_No Urgente": 0.7,
-                        "tipo de ingreso Urgente": 0.3,
-                        "fecha ingreso completa": "2025-10-20"
-                    }
-                }
+                "message": "Archivo procesado exitosamente",
+                "complejidades_procesadas": {
+                    "Alta": "Procesada exitosamente",
+                    "Baja": "Procesada exitosamente",
+                    "Media": "Procesada exitosamente",
+                    "Neonatología": "Datos insuficientes",
+                    "Pediatría": "Procesada exitosamente"
+                },
+                "archivos_generados": {
+                    "Alta": "./data/Alta.csv",
+                    "Baja": "./data/Baja.csv",
+                    "Media": "./data/Media.csv",
+                    "Pediatría": "./data/Pediatría.csv"
+                },
+                "estadisticas": {
+                    "Alta": {"filas": 120, "columnas": 18},
+                    "Baja": {"filas": 98, "columnas": 18}
+                },
+                "timestamp": "2025-10-26T12:30:45"
             }
         }
 
+
 @router.post(
-    "/send", 
+    "/process-excel",
     status_code=status.HTTP_200_OK,
-    response_model=WeeklyDataResponse,
-    summary="Enviar datos semanales de complejidades",
+    response_model=PipelineProcessResponse,
+    summary="Procesar archivo Excel inicial",
     description="""
-    Recibe datos históricos de la semana anterior para las 5 complejidades hospitalarias.
+    Procesa un archivo Excel con datos hospitalarios crudos y genera datasets limpios por complejidad.
     
-    **Complejidades requeridas:**
-    - `alta`: Complejidad alta
-    - `baja`: Complejidad baja  
-    - `media`: Complejidad media
-    - `neonatología`: Neonatología
-    - `pediatria`: Pediatría
+    **Requisitos del archivo Excel:**
+    - Debe tener **al menos 3 hojas**
+    - **Hoja 0**: Datos principales de pacientes con columnas:
+        - `Servicio Ingreso (Código)`
+        - `Fecha Ingreso Completa`
+        - `Estancia (Días)`
+        - `Tipo de Paciente`
+        - `Tipo de Ingreso`
+        - Y otras columnas de metadata
+    - **Hoja 2**: Datos de servicios/complejidad con columnas:
+        - `UO trat.` (código de unidad)
+        - `Complejidad`
     
-    **Cada complejidad debe incluir:**
-    - `demanda_pacientes`: Cantidad real de pacientes (> 0)
-    - `estancia (días)`: Promedio de días de estancia (> 0)
-    - `tipo de paciente_No Qx`: Proporción no quirúrgicos (0-1)
-    - `tipo de paciente Qx`: Proporción quirúrgicos (0-1)
-    - `tipo de ingreso_No Urgente`: Proporción ingresos programados (0-1)
-    - `tipo de ingreso Urgente`: Proporción ingresos urgentes (0-1)
-    - `fecha ingreso completa`: Fecha en formato ISO (YYYY-MM-DD)
+    **Proceso realizado:**
+    1. Limpieza y normalización de datos
+    2. Merge de hojas de datos
+    3. Creación de features temporales (semana, mes, estación)
+    4. One-hot encoding de variables categóricas
+    5. Agrupación semanal
+    6. Creación de lags (1, 2, 3, 4, 10, 52 semanas)
+    7. Generación de CSV por complejidad
     
-    **Validaciones automáticas:**
-    - Todas las complejidades deben estar presentes
-    - Todos los campos son obligatorios
-    - Las proporciones deben estar entre 0 y 1
-    - Las cantidades deben ser mayores que 0
-    - La fecha debe tener formato válido
+    **Complejidades procesadas:**
+    - Alta
+    - Media
+    - Baja
+    - Neonatología
+    - Pediatría
+    
+    **Nota:** Las complejidades con menos de 55 semanas de datos no serán procesadas.
     """,
     responses={
         200: {
-            "description": "Datos recibidos y validados correctamente",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "message": "Datos recibidos correctamente",
-                        "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
-                        "data": {
-                            "alta": {
-                                "demanda_pacientes": 50,
-                                "estancia (días)": 5.2,
-                                "tipo de paciente_No Qx": 0.6,
-                                "tipo de paciente Qx": 0.4,
-                                "tipo de ingreso_No Urgente": 0.7,
-                                "tipo de ingreso Urgente": 0.3,
-                                "fecha ingreso completa": "2025-10-20"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        422: {
-            "description": "Error de validación - faltan datos o formato incorrecto",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": [
-                            {
-                                "type": "missing",
-                                "loc": ["body", "alta"],
-                                "msg": "Field required"
-                            }
-                        ]
-                    }
-                }
-            }
-        }
-    }
-)
-async def post_data(
-    data: WeeklyDataRequest = Body(
-        ...,
-        openapi_examples={
-            "ejemplo_completo": {
-                "summary": "Ejemplo con datos de todas las complejidades",
-                "description": "Ejemplo completo con datos realistas para las 5 complejidades",
-                "value": {
-                    "alta": {
-                        "demanda_pacientes": 50,
-                        "estancia (días)": 5.2,
-                        "tipo de paciente_No Qx": 0.6,
-                        "tipo de paciente Qx": 0.4,
-                        "tipo de ingreso_No Urgente": 0.7,
-                        "tipo de ingreso Urgente": 0.3,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "baja": {
-                        "demanda_pacientes": 30,
-                        "estancia (días)": 3.5,
-                        "tipo de paciente_No Qx": 0.8,
-                        "tipo de paciente Qx": 0.2,
-                        "tipo de ingreso_No Urgente": 0.85,
-                        "tipo de ingreso Urgente": 0.15,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "media": {
-                        "demanda_pacientes": 40,
-                        "estancia (días)": 4.5,
-                        "tipo de paciente_No Qx": 0.7,
-                        "tipo de paciente Qx": 0.3,
-                        "tipo de ingreso_No Urgente": 0.75,
-                        "tipo de ingreso Urgente": 0.25,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "neonatología": {
-                        "demanda_pacientes": 15,
-                        "estancia (días)": 8.0,
-                        "tipo de paciente_No Qx": 0.9,
-                        "tipo de paciente Qx": 0.1,
-                        "tipo de ingreso_No Urgente": 0.5,
-                        "tipo de ingreso Urgente": 0.5,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "pediatria": {
-                        "demanda_pacientes": 25,
-                        "estancia (días)": 4.0,
-                        "tipo de paciente_No Qx": 0.75,
-                        "tipo de paciente Qx": 0.25,
-                        "tipo de ingreso_No Urgente": 0.6,
-                        "tipo de ingreso Urgente": 0.4,
-                        "fecha ingreso completa": "2025-10-20"
-                    }
-                }
-            }
-        }
-    )
-):
-    """
-    Procesa y valida datos semanales de todas las complejidades hospitalarias.
-    
-    Este endpoint recibe datos históricos de la semana anterior para las 5 complejidades
-    y los valida antes de procesarlos para predicciones futuras.
-    """
-    try:
-        # Aquí puedes procesar los datos recibidos
-        return WeeklyDataResponse(
-            message="Datos recibidos correctamente",
-            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=data.model_dump(by_alias=True)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error procesando los datos: {str(e)}"
-        )
-        
-@router.post(
-    "/upload", 
-    status_code=status.HTTP_200_OK,
-    response_model=WeeklyDataResponse,
-    summary="Subir archivo Excel con datos semanales",
-    description="""
-    Sube un archivo Excel (.xlsx) con datos semanales de todas las complejidades.
-    
-    **Formato del Excel:**
-    
-    El archivo debe contener una hoja con las siguientes columnas:
-    - `complejidad`: Nombre de la complejidad (alta, baja, media, neonatología, pediatria)
-    - `demanda_pacientes`: Cantidad de pacientes
-    - `estancia (días)`: Promedio de estancia
-    - `tipo de paciente_No Qx`: Proporción de pacientes no quirúrgicos (0-1)
-    - `tipo de paciente Qx`: Proporción de pacientes quirúrgicos (0-1)
-    - `tipo de ingreso_No Urgente`: Proporción de ingresos no urgentes (0-1)
-    - `tipo de ingreso Urgente`: Proporción de ingresos urgentes (0-1)
-    - `fecha ingreso completa`: Fecha en formato YYYY-MM-DD
-    
-    **Ejemplo de estructura:**
-    
-    | complejidad  | demanda_pacientes | estancia (días) | tipo de paciente_No Qx | ... |
-    |--------------|-------------------|-----------------|------------------------|-----|
-    | alta         | 50                | 5.2             | 0.6                    | ... |
-    | baja         | 30                | 3.5             | 0.8                    | ... |
-    | media        | 40                | 4.5             | 0.7                    | ... |
-    | neonatología | 15                | 8.0             | 0.9                    | ... |
-    | pediatria    | 25                | 4.0             | 0.75                   | ... |
-    
-    **Validaciones:**
-    - Debe contener las 5 complejidades
-    - Todos los campos son obligatorios
-    - Formato de archivo: .xlsx o .xls
-    """,
-    responses={
-        200: {
-            "description": "Archivo procesado correctamente",
+            "description": "Archivo procesado exitosamente",
         },
         400: {
-            "description": "Error al procesar el archivo - formato inválido o datos incorrectos",
+            "description": "Error al procesar el archivo",
             "content": {
                 "application/json": {
                     "example": {
-                        "detail": "Error al leer el archivo Excel: formato inválido"
+                        "detail": "El archivo debe tener al menos 3 hojas"
                     }
                 }
             }
-        },
-        422: {
-            "description": "Error de validación de datos",
         }
     }
 )
-async def upload_data(
-    file: UploadFile = File(..., description="Archivo Excel (.xlsx o .xls) con los datos semanales"),
+async def process_excel(
+    file: UploadFile = File(
+        ..., 
+        description="Archivo Excel (.xlsx o .xls) con datos hospitalarios crudos"
+    )
 ):
     """
-    Procesa un archivo Excel con datos semanales de todas las complejidades.
+    Procesa un archivo Excel inicial con datos hospitalarios.
     
-    El archivo debe contener una hoja con las 5 complejidades y sus respectivos datos.
+    Este endpoint ejecuta el pipeline completo de limpieza y genera
+    archivos CSV por complejidad listos para entrenamiento de modelos.
     """
-    # Validar que se proporcionó un nombre de archivo
+    # Validar archivo
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se proporcionó un nombre de archivo"
         )
     
-    # Validar extensión del archivo
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -428,112 +151,51 @@ async def upload_data(
         )
     
     try:
-        # Leer el contenido del archivo
+        # Leer archivo
         contents = await file.read()
+        excel_file = io.BytesIO(contents)
         
-        # Cargar el Excel con pandas
-        df = pd.read_excel(io.BytesIO(contents))
+        # Procesar Excel completo
+        dfs_por_complejidad = procesar_excel_completo(excel_file)
         
-        # Validar que tenga la columna 'complejidad'
-        if 'complejidad' not in df.columns:
+        # Preparar respuesta
+        complejidades_procesadas = {}
+        archivos_generados = {}
+        estadisticas = {}
+        
+        for complejidad, df in dfs_por_complejidad.items():
+            if df is not None:
+                # Guardar CSV
+                filename = f"{complejidad}.csv"
+                filepath = storage_manager.save_csv(df, filename)
+                
+                complejidades_procesadas[complejidad] = "Procesada exitosamente"
+                archivos_generados[complejidad] = filepath
+                estadisticas[complejidad] = {
+                    "filas": len(df),
+                    "columnas": len(df.columns)
+                }
+            else:
+                complejidades_procesadas[complejidad] = "Datos insuficientes (< 55 semanas)"
+        
+        if not archivos_generados:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El archivo debe contener una columna 'complejidad'"
+                detail="No se pudo procesar ninguna complejidad. Verifique que el archivo tenga datos suficientes."
             )
         
-        # Normalizar nombres de complejidades (minúsculas, sin tildes en comparación)
-        df['complejidad'] = df['complejidad'].str.lower().str.strip()
-        
-        # Validar que estén las 5 complejidades requeridas
-        required_complexities = {'alta', 'baja', 'media', 'neonatología', 'pediatria'}
-        found_complexities = set(df['complejidad'].unique())
-        
-        # También aceptar sin tilde
-        if 'neonatologia' in found_complexities:
-            df.loc[df['complejidad'] == 'neonatologia', 'complejidad'] = 'neonatología'
-            found_complexities = set(df['complejidad'].unique())
-        
-        missing = required_complexities - found_complexities
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Faltan las siguientes complejidades: {', '.join(missing)}"
-            )
-        
-        # Validar que tenga todas las columnas necesarias
-        required_columns = {
-            'complejidad',
-            'demanda_pacientes',
-            'estancia (días)',
-            'tipo de paciente_No Qx',
-            'tipo de paciente Qx',
-            'tipo de ingreso_No Urgente',
-            'tipo de ingreso Urgente',
-            'fecha ingreso completa'
-        }
-        
-        missing_columns = required_columns - set(df.columns)
-        if missing_columns:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Faltan las siguientes columnas: {', '.join(missing_columns)}"
-            )
-        
-        # Construir el objeto WeeklyDataRequest desde el DataFrame
-        data_dict = {}
-        
-        for _, row in df.iterrows():
-            complexity = row['complejidad']
-            
-            # Convertir fecha a string si es necesario
-            fecha = row['fecha ingreso completa']
-            if isinstance(fecha, pd.Timestamp):
-                fecha = fecha.strftime('%Y-%m-%d')
-            elif not isinstance(fecha, str):
-                fecha = str(fecha)
-            
-            complexity_data = {
-                'demanda_pacientes': float(row['demanda_pacientes']),
-                'estancia (días)': float(row['estancia (días)']),
-                'tipo de paciente_No Qx': float(row['tipo de paciente_No Qx']),
-                'tipo de paciente Qx': float(row['tipo de paciente Qx']),
-                'tipo de ingreso_No Urgente': float(row['tipo de ingreso_No Urgente']),
-                'tipo de ingreso Urgente': float(row['tipo de ingreso Urgente']),
-                'fecha ingreso completa': fecha
-            }
-            
-            data_dict[complexity] = complexity_data
-        
-        # Validar con Pydantic
-        try:
-            validated_data = WeeklyDataRequest(**data_dict)
-        except ValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Error de validación de datos: {e.errors()}"
-            )
-        
-        # Retornar respuesta exitosa
-        return WeeklyDataResponse(
-            message="Archivo procesado correctamente",
-            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=validated_data.model_dump(by_alias=True)
+        return PipelineProcessResponse(
+            message="Archivo procesado exitosamente",
+            complejidades_procesadas=complejidades_procesadas,
+            archivos_generados=archivos_generados,
+            estadisticas=estadisticas,
+            timestamp=datetime.now().isoformat()
         )
         
-    except pd.errors.EmptyDataError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El archivo Excel está vacío"
-        )
-    except pd.errors.ParserError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error al leer el archivo Excel: formato inválido"
-        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error al procesar los datos: {str(e)}"
+            detail=str(e)
         )
     except Exception as e:
         raise HTTPException(
@@ -541,75 +203,206 @@ async def upload_data(
             detail=f"Error interno al procesar el archivo: {str(e)}"
         )
 
+
 @router.get(
-    "/template",
-    summary="Descargar plantilla Excel",
+    "/download/{complejidad}",
+    summary="Descargar CSV de complejidad",
     description="""
-    Descarga una plantilla de Excel con el formato correcto para subir datos.
+    Descarga el CSV procesado de una complejidad específica.
     
-    La plantilla incluye:
-    - Todas las columnas requeridas
-    - Filas de ejemplo para cada complejidad
-    - Formato correcto de datos
+    **Complejidades disponibles:**
+    - `Alta`
+    - `Media`
+    - `Baja`
+    - `Neonatología`
+    - `Pediatría`
     
-    Puedes usar esta plantilla como base para subir tus propios datos.
+    El archivo debe haber sido procesado previamente mediante el endpoint `/pipeline/process-excel`.
     """,
     responses={
         200: {
-            "description": "Plantilla Excel descargada correctamente",
+            "description": "CSV descargado correctamente",
             "content": {
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+                "text/csv": {}
+            }
+        },
+        404: {
+            "description": "Archivo no encontrado",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "No se encontró el archivo para la complejidad: Alta"
+                    }
+                }
             }
         }
     }
 )
-async def download_template():
+async def download_complejidad_csv(complejidad: str):
     """
-    Genera y descarga una plantilla de Excel con el formato correcto.
+    Descarga el CSV de una complejidad específica.
+    
+    Args:
+        complejidad: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
-    # Crear DataFrame con datos de ejemplo
-    data = {
-        'complejidad': ['alta', 'baja', 'media', 'neonatología', 'pediatria'],
-        'demanda_pacientes': [50, 30, 40, 15, 25],
-        'estancia (días)': [5.2, 3.5, 4.5, 8.0, 4.0],
-        'tipo de paciente_No Qx': [0.6, 0.8, 0.7, 0.9, 0.75],
-        'tipo de paciente Qx': [0.4, 0.2, 0.3, 0.1, 0.25],
-        'tipo de ingreso_No Urgente': [0.7, 0.85, 0.75, 0.5, 0.6],
-        'tipo de ingreso Urgente': [0.3, 0.15, 0.25, 0.5, 0.4],
-        'fecha ingreso completa': ['2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20']
+    # Validar complejidad
+    complejidades_validas = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
+    if complejidad not in complejidades_validas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Complejidad inválida. Valores permitidos: {', '.join(complejidades_validas)}"
+        )
+    
+    filename = f"{complejidad}.csv"
+    
+    try:
+        # Cargar CSV
+        df = storage_manager.load_csv(filename)
+        
+        # Convertir a CSV en memoria
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_buffer.seek(0)
+        
+        # Retornar como descarga
+        return StreamingResponse(
+            io.BytesIO(csv_buffer.getvalue().encode()),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró el archivo para la complejidad: {complejidad}. "
+                   "Debe procesar el Excel primero usando /pipeline/process-excel"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al descargar el archivo: {str(e)}"
+        )
+
+
+@router.get(
+    "/download-all",
+    summary="Descargar todos los CSVs",
+    description="""
+    Descarga un archivo ZIP con todos los CSVs procesados.
+    
+    El ZIP contendrá un archivo CSV por cada complejidad que haya sido procesada exitosamente.
+    """,
+    responses={
+        200: {
+            "description": "ZIP descargado correctamente",
+            "content": {
+                "application/zip": {}
+            }
+        },
+        404: {
+            "description": "No hay archivos procesados",
+        }
     }
+)
+async def download_all_csvs():
+    """
+    Descarga un ZIP con todos los CSVs de complejidades procesadas.
+    """
+    complejidades = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
     
-    df = pd.DataFrame(data)
+    # Crear ZIP en memoria
+    zip_buffer = io.BytesIO()
     
-    # Crear archivo Excel en memoria
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Datos Semanales')
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        archivos_agregados = 0
         
-        # Obtener el workbook y worksheet para formatear
-        workbook = writer.book
-        worksheet = writer.sheets['Datos Semanales']
-        
-        # Ajustar ancho de columnas
-        for column in worksheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 50)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+        for complejidad in complejidades:
+            filename = f"{complejidad}.csv"
+            
+            try:
+                df = storage_manager.load_csv(filename)
+                
+                # Agregar al ZIP
+                csv_buffer = io.StringIO()
+                df.to_csv(csv_buffer, index=False)
+                zip_file.writestr(filename, csv_buffer.getvalue())
+                archivos_agregados += 1
+                
+            except FileNotFoundError:
+                # Skip si no existe
+                continue
+            except Exception as e:
+                # Log error pero continuar
+                print(f"Error al agregar {complejidad}: {e}")
+                continue
     
-    output.seek(0)
+    if archivos_agregados == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay archivos CSV procesados disponibles. "
+                   "Debe procesar un Excel primero usando /pipeline/process-excel"
+        )
     
-    # Retornar como respuesta de descarga
+    zip_buffer.seek(0)
+    
     return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        zip_buffer,
+        media_type="application/zip",
         headers={
-            "Content-Disposition": "attachment; filename=template_datos_semanales.xlsx"
+            "Content-Disposition": "attachment; filename=complejidades_procesadas.zip"
         }
     )
+
+
+@router.get(
+    "/status",
+    summary="Estado del pipeline",
+    description="""
+    Obtiene el estado actual del pipeline y archivos procesados.
+    
+    Retorna información sobre qué complejidades han sido procesadas
+    y están disponibles para descarga o predicción.
+    """,
+)
+async def pipeline_status():
+    """
+    Obtiene el estado del pipeline y archivos disponibles.
+    """
+    complejidades = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
+    estado = {}
+    
+    for complejidad in complejidades:
+        filename = f"{complejidad}.csv"
+        existe = storage_manager.exists(filename)
+        
+        if existe:
+            try:
+                df = storage_manager.load_csv(filename)
+                estado[complejidad] = {
+                    "procesado": True,
+                    "filas": len(df),
+                    "columnas": len(df.columns),
+                    "ultima_semana": df['semana_año'].iloc[-1] if 'semana_año' in df.columns else None
+                }
+            except Exception as e:
+                estado[complejidad] = {
+                    "procesado": True,
+                    "error": str(e)
+                }
+        else:
+            estado[complejidad] = {
+                "procesado": False
+            }
+    
+    archivos_procesados = sum(1 for c in estado.values() if c.get("procesado", False))
+    
+    return {
+        "message": "Estado del pipeline",
+        "total_complejidades": len(complejidades),
+        "archivos_procesados": archivos_procesados,
+        "storage_type": storage_manager.storage_type,
+        "complejidades": estado
+    }
+
