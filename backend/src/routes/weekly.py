@@ -341,6 +341,9 @@ async def post_data(
     """
     try:
         # Aquí puedes procesar los datos recibidos
+        df = pd.DataFrame(data.model_dump(by_alias=True))
+        filename = "weekly.csv"
+        storage_manager.save_csv(df, filename)
         return WeeklyDataResponse(
             message="Datos recibidos correctamente",
             complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
@@ -617,3 +620,29 @@ async def download_template():
             "Content-Disposition": "attachment; filename=template_datos_semanales.xlsx"
         }
     )
+    
+@router.get(
+  "/last-date",
+  summary="Obtener la última fecha de datos semanales",
+  description="""
+  Obtiene la última fecha de datos semanales procesados.
+  """,
+  responses={
+    200: {
+      "description": "Última fecha de datos semanales",
+      "content": {
+        "application/json": {
+          "example": {
+            "last_date": "2025-10-20"
+          }
+        }
+      }
+    }
+  }
+)
+async def get_last_date():
+  """
+  Obtiene la última fecha de datos semanales procesados.
+  """
+  df = storage_manager.load_csv("weekly.csv")
+  return {"last_date": df["fecha ingreso completa"].max()}
