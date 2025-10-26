@@ -575,11 +575,11 @@ async def download_template():
     data = {
         'complejidad': ['alta', 'baja', 'media', 'neonatología', 'pediatria'],
         'demanda_pacientes': [50, 30, 40, 15, 25],
-        'estancia (días)': [5.2, 3.5, 4.5, 8.0, 4.0],
-        'tipo de paciente_No Qx': [0.6, 0.8, 0.7, 0.9, 0.75],
-        'tipo de paciente Qx': [0.4, 0.2, 0.3, 0.1, 0.25],
-        'tipo de ingreso_No Urgente': [0.7, 0.85, 0.75, 0.5, 0.6],
-        'tipo de ingreso Urgente': [0.3, 0.15, 0.25, 0.5, 0.4],
+        'estancia (días)': [5, 3, 4, 8, 4],
+        'tipo de paciente_No Qx': [30, 24, 40, 9, 75],
+        'tipo de paciente Qx': [20, 6, 10, 1, 25],
+        'tipo de ingreso_No Urgente': [45, 25, 75, 5, 6],
+        'tipo de ingreso Urgente': [15, 5, 25, 5, 4],
         'fecha ingreso completa': ['2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20']
     }
     
