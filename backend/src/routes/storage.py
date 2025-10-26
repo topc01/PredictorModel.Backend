@@ -12,7 +12,7 @@ router = APIRouter(
 
 
 @router.get(
-    "/storage/health",
+    "/health",
     status_code=status.HTTP_200_OK,
     summary="Verificar conectividad con S3",
     description="""
