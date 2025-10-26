@@ -88,6 +88,7 @@ async def storage_health_check():
     # Get bucket names from environment variables
     files_bucket = os.getenv('S3_FILES_BUCKET')
     data_bucket = os.getenv('S3_DATA_BUCKET')
+    storage_type = os.getenv('STORAGE_TYPE')
     
     # Check if environment variables are set
     if not files_bucket or not data_bucket:
@@ -122,6 +123,7 @@ async def storage_health_check():
                 "exists": data_check['exists'],
             }
         },
+        "using_storage": storage_type,
         "status": "",
         "message": "",
     }
