@@ -38,7 +38,6 @@ class WeeklyComplexityData(BaseModel):
         alias='tipo de paciente_No Qx', 
         description="Proporción de pacientes no quirúrgicos (0-1)",
         ge=0,
-        le=1,
         examples=[30, 20, 40]
     )
     tipo_de_paciente_Qx: int = Field(
@@ -46,7 +45,6 @@ class WeeklyComplexityData(BaseModel):
         alias='tipo de paciente Qx', 
         description="Proporción de pacientes quirúrgicos (0-1)",
         ge=0,
-        le=1,
         examples=[20, 30, 10]
     )
     tipo_de_ingreso_No_Urgente: int = Field(
@@ -54,7 +52,6 @@ class WeeklyComplexityData(BaseModel):
         alias='tipo de ingreso_No Urgente', 
         description="Proporción de ingresos no urgentes/programados (0-1)",
         ge=0,
-        le=1,
         examples=[45, 25, 55]
     )
     tipo_de_ingreso_Urgente: int = Field(
@@ -62,7 +59,6 @@ class WeeklyComplexityData(BaseModel):
         alias='tipo de ingreso Urgente', 
         description="Proporción de ingresos urgentes (0-1)",
         ge=0,
-        le=1,
         examples=[15, 5, 25]
     )
     fecha_ingreso_completa: str = Field(
