@@ -11,6 +11,10 @@ from typing import Optional, Dict
 import pandas as pd
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (for local development)
+load_dotenv()
 
 
 class StorageManager:
