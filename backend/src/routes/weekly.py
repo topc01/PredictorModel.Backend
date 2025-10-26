@@ -26,12 +26,12 @@ class WeeklyComplexityData(BaseModel):
         gt=0,
         examples=[50, 75, 100]
     )
-    estancia__días_: int = Field(
+    estancia_días: float = Field(
         ..., 
         alias='estancia (días)', 
         description="Promedio de días de estancia hospitalaria de la semana pasada",
         gt=0,
-        examples=[5, 7, 3]
+        examples=[5.2, 7.5, 3.8]
     )
     tipo_de_paciente_No_Qx: int = Field(
         ..., 
