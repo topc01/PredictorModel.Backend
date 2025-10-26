@@ -1,6 +1,10 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from src.routes import router
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (for local development)
+load_dotenv()
 
 origins = [
     "http://localhost:5173",
@@ -26,9 +30,6 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
   
-@app.get("/hello/{name}", status_code=status.HTTP_200_OK)
-async def name(name: str):
-    return {"message": f"Hello {name}"}
 
 app.include_router(router)
 
