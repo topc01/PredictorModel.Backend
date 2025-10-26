@@ -18,7 +18,7 @@ from ..utils.storage import storage_manager
 
 
 router = APIRouter(
-    tags=["Pipeline"],
+    tags=["Data"],
     responses={
         404: {"description": "No encontrado"},
         400: {"description": "Error de procesamiento"},
