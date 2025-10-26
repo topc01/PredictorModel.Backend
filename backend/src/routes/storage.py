@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
 import os
-from src.utils.storage import check_bucket_access, get_bucket_info
+from src.utils.storage import check_bucket_access, get_bucket_info, storage_manager
 
 router = APIRouter(
     tags=["Storage"],
@@ -88,7 +88,6 @@ async def storage_health_check():
     # Get bucket names from environment variables
     files_bucket = os.getenv('S3_FILES_BUCKET')
     data_bucket = os.getenv('S3_DATA_BUCKET')
-    storage_type = os.getenv('STORAGE_TYPE')
     
     # Check if environment variables are set
     if not files_bucket or not data_bucket:
@@ -123,10 +122,14 @@ async def storage_health_check():
                 "exists": data_check['exists'],
             }
         },
-        "using_storage": storage_type,
+        "storage_manager": {
+          "storage_type": storage_manager.storage_type,
+          "base_path": storage_manager.base_path,
+        },
         "status": "",
         "message": "",
     }
+    return response
     
     # Add errors if present
     if files_check['error']:
