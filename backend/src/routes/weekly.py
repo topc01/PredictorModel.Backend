@@ -6,7 +6,7 @@ import pandas as pd
 import io
 
 router = APIRouter(
-    tags=["Data"],
+    tags=["Weekly Data"],
     responses={
         404: {"description": "No encontrado"},
         422: {"description": "Error de validación"},
