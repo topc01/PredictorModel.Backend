@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime
 import pandas as pd
 import io
+from ..utils.storage import storage_manager
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -512,6 +513,9 @@ async def upload_data(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Error de validación de datos: {e.errors()}"
             )
+        
+        filename = "weekly.csv"
+        storage_manager.save_csv(df, filename)
         
         # Retornar respuesta exitosa
         return WeeklyDataResponse(
