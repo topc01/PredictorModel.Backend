@@ -9,6 +9,8 @@ import io
 from pathlib import Path
 from typing import Optional, Dict
 import pandas as pd
+import boto3
+from botocore.exceptions import ClientError, BotoCoreError
 
 
 class StorageManager:
@@ -163,4 +165,74 @@ storage_manager = StorageManager(
     base_path=_storage_base_path,
     s3_bucket=_s3_bucket
 )
+
+
+def check_bucket_access(bucket_name: str) -> Dict[str, any]:
+    """
+    Check if a bucket exists and is accessible.
+    
+    Returns:
+        dict with 'accessible' (bool), 'error' (str or None), and 'exists' (bool)
+    """
+    try:
+        s3_client = boto3.client('s3', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+        s3_client.head_bucket(Bucket=bucket_name)
+        return {
+            'accessible': True,
+            'exists': True,
+            'error': None
+        }
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        if error_code == '404':
+            return {
+                'accessible': False,
+                'exists': False,
+                'error': 'Bucket does not exist'
+            }
+        elif error_code == '403':
+            return {
+                'accessible': False,
+                'exists': True,
+                'error': 'Access denied - check IAM permissions'
+            }
+        else:
+            return {
+                'accessible': False,
+                'exists': None,
+                'error': f'Client error: {error_code}'
+            }
+    except BotoCoreError as e:
+        return {
+            'accessible': False,
+            'exists': None,
+            'error': f'BotoCore error: {str(e)}'
+        }
+    except Exception as e:
+        return {
+            'accessible': False,
+            'exists': None,
+            'error': f'Unexpected error: {str(e)}'
+        }
+
+
+def get_bucket_info(bucket_name: str) -> Optional[Dict]:
+    """
+    Get basic information about a bucket (region, creation date).
+    
+    Returns None if bucket is not accessible.
+    """
+    try:
+        s3_client = boto3.client('s3', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+        
+        # Get bucket location
+        location_response = s3_client.get_bucket_location(Bucket=bucket_name)
+        region = location_response.get('LocationConstraint') or 'us-east-1'
+        
+        return {
+            'region': region,
+            'name': bucket_name
+        }
+    except Exception:
+        return None
 
