@@ -19,50 +19,50 @@ class WeeklyComplexityData(BaseModel):
     
     Contiene información histórica de la semana anterior para realizar predicciones.
     """
-    demanda_pacientes: float = Field(
+    demanda_pacientes: int = Field(
         ..., 
         description="Cantidad real de pacientes de la semana pasada",
         gt=0,
         examples=[50, 75, 100]
     )
-    estancia__días_: float = Field(
+    estancia__días_: int = Field(
         ..., 
         alias='estancia (días)', 
         description="Promedio de días de estancia hospitalaria de la semana pasada",
         gt=0,
-        examples=[5.2, 7.8, 3.5]
+        examples=[5, 7, 3]
     )
-    tipo_de_paciente_No_Qx: float = Field(
+    tipo_de_paciente_No_Qx: int = Field(
         ..., 
         alias='tipo de paciente_No Qx', 
         description="Proporción de pacientes no quirúrgicos (0-1)",
         ge=0,
         le=1,
-        examples=[0.6, 0.45, 0.7]
+        examples=[30, 20, 40]
     )
-    tipo_de_paciente_Qx: float = Field(
+    tipo_de_paciente_Qx: int = Field(
         ..., 
         alias='tipo de paciente Qx', 
         description="Proporción de pacientes quirúrgicos (0-1)",
         ge=0,
         le=1,
-        examples=[0.4, 0.55, 0.3]
+        examples=[20, 30, 10]
     )
-    tipo_de_ingreso_No_Urgente: float = Field(
+    tipo_de_ingreso_No_Urgente: int = Field(
         ..., 
         alias='tipo de ingreso_No Urgente', 
         description="Proporción de ingresos no urgentes/programados (0-1)",
         ge=0,
         le=1,
-        examples=[0.7, 0.65, 0.8]
+        examples=[45, 25, 55]
     )
-    tipo_de_ingreso_Urgente: float = Field(
+    tipo_de_ingreso_Urgente: int = Field(
         ..., 
         alias='tipo de ingreso Urgente', 
         description="Proporción de ingresos urgentes (0-1)",
         ge=0,
         le=1,
-        examples=[0.3, 0.35, 0.2]
+        examples=[15, 5, 25]
     )
     fecha_ingreso_completa: str = Field(
         ..., 
@@ -131,47 +131,47 @@ class WeeklyDataRequest(BaseModel):
             "example": {
                 "alta": {
                     "demanda_pacientes": 50,
-                    "estancia (días)": 5.2,
-                    "tipo de paciente_No Qx": 0.6,
-                    "tipo de paciente Qx": 0.4,
-                    "tipo de ingreso_No Urgente": 0.7,
-                    "tipo de ingreso Urgente": 0.3,
+                    "estancia (días)": 5,
+                    "tipo de paciente_No Qx": 30,
+                    "tipo de paciente Qx": 20,
+                    "tipo de ingreso_No Urgente": 45,
+                    "tipo de ingreso Urgente": 15,
                     "fecha ingreso completa": "2025-10-20"
                 },
                 "baja": {
                     "demanda_pacientes": 30,
-                    "estancia (días)": 3.5,
-                    "tipo de paciente_No Qx": 0.8,
-                    "tipo de paciente Qx": 0.2,
-                    "tipo de ingreso_No Urgente": 0.85,
-                    "tipo de ingreso Urgente": 0.15,
+                    "estancia (días)": 3,
+                    "tipo de paciente_No Qx": 24,
+                    "tipo de paciente Qx": 6,
+                    "tipo de ingreso_No Urgente": 25,
+                    "tipo de ingreso Urgente": 5,
                     "fecha ingreso completa": "2025-10-20"
                 },
                 "media": {
                     "demanda_pacientes": 40,
-                    "estancia (días)": 4.5,
-                    "tipo de paciente_No Qx": 0.7,
-                    "tipo de paciente Qx": 0.3,
-                    "tipo de ingreso_No Urgente": 0.75,
-                    "tipo de ingreso Urgente": 0.25,
+                      "estancia (días)": 4,
+                    "tipo de paciente_No Qx": 40,
+                    "tipo de paciente Qx": 10,
+                    "tipo de ingreso_No Urgente": 75,
+                    "tipo de ingreso Urgente": 25,
                     "fecha ingreso completa": "2025-10-20"
                 },
                 "neonatología": {
                     "demanda_pacientes": 15,
-                    "estancia (días)": 8.0,
-                    "tipo de paciente_No Qx": 0.9,
-                    "tipo de paciente Qx": 0.1,
-                    "tipo de ingreso_No Urgente": 0.5,
-                    "tipo de ingreso Urgente": 0.5,
+                    "estancia (días)": 8,
+                    "tipo de paciente_No Qx": 9,
+                    "tipo de paciente Qx": 1,
+                    "tipo de ingreso_No Urgente": 5,
+                    "tipo de ingreso Urgente": 5,
                     "fecha ingreso completa": "2025-10-20"
                 },
                 "pediatria": {
                     "demanda_pacientes": 25,
-                    "estancia (días)": 4.0,
-                    "tipo de paciente_No Qx": 0.75,
-                    "tipo de paciente Qx": 0.25,
-                    "tipo de ingreso_No Urgente": 0.6,
-                    "tipo de ingreso Urgente": 0.4,
+                    "estancia (días)": 4,
+                    "tipo de paciente_No Qx": 75,
+                    "tipo de paciente Qx": 25,
+                    "tipo de ingreso_No Urgente": 6,
+                    "tipo de ingreso Urgente": 4,
                     "fecha ingreso completa": "2025-10-20"
                 }
             }
@@ -191,11 +191,11 @@ class WeeklyDataResponse(BaseModel):
                 "data": {
                     "alta": {
                         "demanda_pacientes": 50,
-                        "estancia (días)": 5.2,
-                        "tipo de paciente_No Qx": 0.6,
-                        "tipo de paciente Qx": 0.4,
-                        "tipo de ingreso_No Urgente": 0.7,
-                        "tipo de ingreso Urgente": 0.3,
+                        "estancia (días)": 5,
+                        "tipo de paciente_No Qx": 30,
+                        "tipo de paciente Qx": 20,
+                        "tipo de ingreso_No Urgente": 45,
+                        "tipo de ingreso Urgente": 15,
                         "fecha ingreso completa": "2025-10-20"
                     }
                 }
@@ -244,11 +244,11 @@ class WeeklyDataResponse(BaseModel):
                         "data": {
                             "alta": {
                                 "demanda_pacientes": 50,
-                                "estancia (días)": 5.2,
-                                "tipo de paciente_No Qx": 0.6,
-                                "tipo de paciente Qx": 0.4,
-                                "tipo de ingreso_No Urgente": 0.7,
-                                "tipo de ingreso Urgente": 0.3,
+                                "estancia (días)": 5,
+                                "tipo de paciente_No Qx": 6,
+                                "tipo de paciente Qx": 20,
+                                "tipo de ingreso_No Urgente": 45,
+                                "tipo de ingreso Urgente": 15,
                                 "fecha ingreso completa": "2025-10-20"
                             }
                         }
@@ -284,20 +284,20 @@ async def post_data(
                 "value": {
                     "alta": {
                         "demanda_pacientes": 50,
-                        "estancia (días)": 5.2,
-                        "tipo de paciente_No Qx": 0.6,
-                        "tipo de paciente Qx": 0.4,
-                        "tipo de ingreso_No Urgente": 0.7,
-                        "tipo de ingreso Urgente": 0.3,
+                        "estancia (días)": 5,
+                        "tipo de paciente_No Qx": 30,
+                        "tipo de paciente Qx": 20,
+                        "tipo de ingreso_No Urgente": 45,
+                        "tipo de ingreso Urgente": 15,
                         "fecha ingreso completa": "2025-10-20"
                     },
                     "baja": {
                         "demanda_pacientes": 30,
-                        "estancia (días)": 3.5,
-                        "tipo de paciente_No Qx": 0.8,
-                        "tipo de paciente Qx": 0.2,
-                        "tipo de ingreso_No Urgente": 0.85,
-                        "tipo de ingreso Urgente": 0.15,
+                        "estancia (días)": 3,
+                        "tipo de paciente_No Qx": 24,
+                        "tipo de paciente Qx": 6,
+                        "tipo de ingreso_No Urgente": 25,
+                        "tipo de ingreso Urgente": 5,
                         "fecha ingreso completa": "2025-10-20"
                     },
                     "media": {
