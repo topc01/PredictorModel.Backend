@@ -583,7 +583,7 @@ async def download_template():
     
     # Crear archivo Excel en memoria
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+    with pd.ExcelWriter(output, engine='openpyxl') as writer: 
         df.to_excel(writer, index=False, sheet_name='Datos Semanales')
         
         # Obtener el workbook y worksheet para formatear
