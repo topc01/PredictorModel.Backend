@@ -637,6 +637,16 @@ async def download_template():
           }
         }
       }
+    },
+    404: {
+      "description": "No se encontraron datos semanales",
+      "content": {
+        "application/json": {
+          "example": {
+            "detail": "No se encontraron datos semanales"
+          }
+        }
+      }
     }
   }
 )
@@ -644,5 +654,11 @@ async def get_last_date():
   """
   Obtiene la última fecha de datos semanales procesados.
   """
-  df = storage_manager.load_csv("weekly.csv")
+  try:
+    df = storage_manager.load_csv("weekly.csv")
+  except Exception as e:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail=f"No se encontraron datos semanales: {str(e)}"
+    )
   return {"last_date": df["fecha ingreso completa"].max()}
