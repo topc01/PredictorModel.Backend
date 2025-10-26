@@ -12,10 +12,14 @@ RUN pip install --no-cache-dir uv
 
 # Copy dependency files for better caching
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen
 
+# Install dependencies into virtual environment
+RUN uv sync --frozen --no-dev
+
+# Copy application code
 COPY src ./src
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Use the installed virtualenv directly (no uv run at runtime)
+CMD [".venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -2,12 +2,16 @@ import os
 import logging
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from src.routes import router
 from src.s3_client import get_s3_client
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from .env file (only for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not installed (production), use environment variables from ECS
+    pass
 
 # Configure logging
 logging.basicConfig(
