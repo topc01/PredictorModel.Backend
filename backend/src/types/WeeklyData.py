@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from .WeeklyComplexityData import WeeklyComplexityData
 import pandas as pd
-from fastapi import File, UploadFile
 
 class WeeklyData(BaseModel):
     """
