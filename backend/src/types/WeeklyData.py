@@ -103,8 +103,8 @@ class WeeklyData(BaseModel):
     def from_df(df: pd.DataFrame):
         complexity_map = {}
         for _, row in df.iterrows():
-            key = row["Complejidad"]
-            data = row.drop("Complejidad").to_dict()
+            key = row["complejidad"]
+            data = row.drop("complejidad").to_dict()
             complexity_map[key] = WeeklyComplexityData(**data)
         return WeeklyData(**complexity_map)
       
