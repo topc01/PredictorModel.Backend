@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from .WeeklyComplexityData import WeeklyComplexityData
+import pandas as pd
+from fastapi import File, UploadFile
 
 class WeeklyData(BaseModel):
     """
@@ -85,3 +87,27 @@ class WeeklyData(BaseModel):
                 }
             }
         }
+
+    def to_df(self):
+        rows = []
+        for complexity_name, complexity_data in self.model_dump(by_alias=True).items():
+            row = {"Complejidad": complexity_name}
+            row.update(complexity_data)
+            rows.append(row)
+
+        return pd.DataFrame(rows)
+    
+    def save_csv(self, filename: str):
+        self.to_df().save_csv(filename)
+    
+    @staticmethod
+    def from_df(df: pd.DataFrame):
+        complexity_map = {}
+        for _, row in df.iterrows():
+            key = row["Complejidad"]
+            data = row.drop("Complejidad").to_dict()
+            complexity_map[key] = WeeklyComplexityData(**data)
+        return WeeklyData(**complexity_map)
+      
+    def to_json(self):
+        return self.model_dump()
