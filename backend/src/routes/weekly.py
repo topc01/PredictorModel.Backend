@@ -48,23 +48,23 @@ class WeeklyDataResponse(BaseModel):
     description="""
     Recibe datos históricos de la semana anterior para las 5 complejidades hospitalarias.
     
-    **Complejidades requeridas:**
-    - `alta`: Complejidad alta
-    - `baja`: Complejidad baja  
-    - `media`: Complejidad media
-    - `neonatología`: Neonatología
-    - `pediatria`: Pediatría
+    Complejidades requeridas:
+    - Alta: Complejidad alta
+    - Baja: Complejidad baja  
+    - Media: Complejidad media
+    - Neonatología: Neonatología
+    - Pediatría: Pediatría
     
-    **Cada complejidad debe incluir:**
-    - `demanda_pacientes`: Cantidad real de pacientes (> 0)
-    - `estancia (días)`: Promedio de días de estancia (> 0)
-    - `tipo de paciente_No Qx`: Proporción no quirúrgicos (0-1)
-    - `tipo de paciente Qx`: Proporción quirúrgicos (0-1)
-    - `tipo de ingreso_No Urgente`: Proporción ingresos programados (0-1)
-    - `tipo de ingreso Urgente`: Proporción ingresos urgentes (0-1)
-    - `fecha ingreso completa`: Fecha en formato ISO (YYYY-MM-DD)
+    Cada complejidad debe incluir:
+    - Demanda pacientes: Cantidad de pacientes
+    - Estancia (días promedio): Promedio de estancia
+    - Pacientes no Qx: Cantidad de pacientes no quirúrgicos
+    - Pacientes Qx: Cantidad de pacientes quirúrgicos
+    - Ingresos no urgentes: Cantidad de ingresos no urgentes
+    - Ingresos urgentes: Cantidad de ingresos urgentes
+    - Fecha ingreso: Fecha en formato YYYY-MM-DD
     
-    **Validaciones automáticas:**
+    Validaciones automáticas:
     - Todas las complejidades deben estar presentes
     - Todos los campos son obligatorios
     - Las proporciones deben estar entre 0 y 1
@@ -148,29 +148,29 @@ async def post_data(
     description="""
     Sube un archivo Excel (.xlsx) con datos semanales de todas las complejidades.
     
-    **Formato del Excel:**
+    Formato del Excel:
     
     El archivo debe contener una hoja con las siguientes columnas:
-    - `complejidad`: Nombre de la complejidad (alta, baja, media, neonatología, pediatria)
-    - `demanda_pacientes`: Cantidad de pacientes
-    - `estancia (días)`: Promedio de estancia
-    - `tipo de paciente_No Qx`: Proporción de pacientes no quirúrgicos (0-1)
-    - `tipo de paciente Qx`: Proporción de pacientes quirúrgicos (0-1)
-    - `tipo de ingreso_No Urgente`: Proporción de ingresos no urgentes (0-1)
-    - `tipo de ingreso Urgente`: Proporción de ingresos urgentes (0-1)
-    - `fecha ingreso completa`: Fecha en formato YYYY-MM-DD
+    - Complejidad: Nombre de la complejidad (Alta, Baja, Media, Neonatología, Pediatría)
+    - Demanda pacientes: Cantidad de pacientes
+    - Estancia (días promedio): Promedio de estancia
+    - Pacientes no Qx: Cantidad de pacientes no quirúrgicos
+    - Pacientes Qx: Cantidad de pacientes quirúrgicos
+    - Ingresos no urgentes: Cantidad de ingresos no urgentes
+    - Ingresos urgentes: Cantidad de ingresos urgentes
+    - Fecha ingreso: Fecha en formato YYYY-MM-DD
     
-    **Ejemplo de estructura:**
+    Ejemplo de estructura:
     
-    | complejidad  | demanda_pacientes | estancia (días) | tipo de paciente_No Qx | ... |
-    |--------------|-------------------|-----------------|------------------------|-----|
-    | alta         | 50                | 5               | 6                      | ... |
-    | baja         | 30                | 3               | 8                      | ... |
-    | media        | 40                | 4               | 7                      | ... |
-    | neonatología | 15                | 8               | 9                      | ... |
-    | pediatria    | 25                | 4               | 75                     | ... |
+    | Complejidad  | Demanda pacientes | Estancia (días promedio) | Pacientes no Qx | Pacientes Qx | Ingresos no urgentes | Ingresos urgentes | Fecha ingreso |
+    |--------------|-------------------|--------------------------|-----------------|--------------|----------------------|-------------------|---------------|
+    | Alta         | 50                | 5.2                      | 30              | 20           | 45                   | 15                | "2025-10-20"  |
+    | Baja         | 30                | 3.8                      | 24              | 6            | 25                   | 5                 | "2025-10-20"  |
+    | Media        | 40                | 4                        | 40              | 10           | 75                   | 25                | "2025-10-20"  |
+    | Neonatología | 15                | 8                        | 9               | 1            | 5                    | 5                 | "2025-10-20"  |
+    | Pediatría    | 25                | 4                        | 75              | 25           | 6                    | 4                 | "2025-10-20"  |
     
-    **Validaciones:**
+    Validaciones:
     - Debe contener las 5 complejidades
     - Todos los campos son obligatorios
     - Formato de archivo: .xlsx o .xls
