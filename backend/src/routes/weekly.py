@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import io
 from ..utils.storage import storage_manager
+from ..pipeline import preparar_datos_prediccion_global
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -340,6 +341,7 @@ async def post_data(
         df = pd.DataFrame(data.model_dump(by_alias=True))
         filename = "weekly.csv"
         storage_manager.save_csv(df, filename)
+        preparar_datos_prediccion_global(df)
         return WeeklyDataResponse(
             message="Datos recibidos correctamente",
             complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
@@ -512,10 +514,22 @@ async def upload_data(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Error de validación de datos: {e.errors()}"
             )
-        
+        try:        # Guardar el DataFrame procesado
         filename = "weekly.csv"
         storage_manager.save_csv(df, filename)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error al gaurdar los datos: {str(e)}"
+            )
         
+        try:
+            preparar_datos_prediccion_global(validated_data.model_dump())
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error al procesar los datos: {str(e)}"
+            )
         # Retornar respuesta exitosa
         return WeeklyDataResponse(
             message="Archivo procesado correctamente",
