@@ -6,6 +6,7 @@ import pandas as pd
 import io
 from ..utils.storage import storage_manager
 from ..pipeline import preparar_datos_prediccion_global
+from ..types import WeeklyData
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -15,166 +16,6 @@ router = APIRouter(
     },
 )
 
-class WeeklyComplexityData(BaseModel):
-    """
-    Datos semanales para una complejidad específica.
-    
-    Contiene información histórica de la semana anterior para realizar predicciones.
-    """
-    demanda_pacientes: int = Field(
-        ..., 
-        description="Cantidad real de pacientes de la semana pasada",
-        gt=0,
-        examples=[50, 75, 100]
-    )
-    estancia_días: float = Field(
-        ..., 
-        alias='estancia (días)', 
-        description="Promedio de días de estancia hospitalaria de la semana pasada",
-        gt=0,
-        examples=[5.2, 7.5, 3.8]
-    )
-    tipo_de_paciente_No_Qx: int = Field(
-        ..., 
-        alias='tipo de paciente_No Qx', 
-        description="Proporción de pacientes no quirúrgicos (0-1)",
-        ge=0,
-        examples=[30, 20, 40]
-    )
-    tipo_de_paciente_Qx: int = Field(
-        ..., 
-        alias='tipo de paciente Qx', 
-        description="Proporción de pacientes quirúrgicos (0-1)",
-        ge=0,
-        examples=[20, 30, 10]
-    )
-    tipo_de_ingreso_No_Urgente: int = Field(
-        ..., 
-        alias='tipo de ingreso_No Urgente', 
-        description="Proporción de ingresos no urgentes/programados (0-1)",
-        ge=0,
-        examples=[45, 25, 55]
-    )
-    tipo_de_ingreso_Urgente: int = Field(
-        ..., 
-        alias='tipo de ingreso Urgente', 
-        description="Proporción de ingresos urgentes (0-1)",
-        ge=0,
-        examples=[15, 5, 25]
-    )
-    fecha_ingreso_completa: str = Field(
-        ..., 
-        alias='fecha ingreso completa', 
-        description="Fecha de ingreso de los datos en formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)",
-        examples=["2025-10-20", "2025-10-20T00:00:00"]
-    )
-    
-    class Config:
-        populate_by_name = True
-        json_schema_extra = {
-            "example": {
-                "demanda_pacientes": 50,
-                "estancia (días)": 5.2,
-                "tipo de paciente_No Qx": 0.6,
-                "tipo de paciente Qx": 0.4,
-                "tipo de ingreso_No Urgente": 0.7,
-                "tipo de ingreso Urgente": 0.3,
-                "fecha ingreso completa": "2025-10-20"
-            }
-        }
-    
-    @field_validator('fecha_ingreso_completa')
-    @classmethod
-    def validate_fecha(cls, v: str) -> str:
-        """Valida que la fecha tenga un formato válido"""
-        try:
-            # Intenta parsear la fecha para verificar que es válida
-            datetime.fromisoformat(v.replace('Z', '+00:00'))
-            return v
-        except ValueError:
-            raise ValueError(f"Formato de fecha inválido: {v}. Use formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)")
-
-class WeeklyDataRequest(BaseModel):
-    """
-    Solicitud de datos semanales para todas las complejidades hospitalarias.
-    
-    Este modelo agrupa los datos históricos de las 5 complejidades principales
-    para realizar predicciones de demanda hospitalaria.
-    """
-    alta: WeeklyComplexityData = Field(
-        ..., 
-        description="Datos de complejidad alta"
-    )
-    baja: WeeklyComplexityData = Field(
-        ..., 
-        description="Datos de complejidad baja"
-    )
-    media: WeeklyComplexityData = Field(
-        ..., 
-        description="Datos de complejidad media"
-    )
-    neonatologia: WeeklyComplexityData = Field(
-        ..., 
-        alias='neonatología',
-        description="Datos de neonatología"
-    )
-    pediatria: WeeklyComplexityData = Field(
-        ..., 
-        description="Datos de pediatría"
-    )
-    
-    class Config:
-        populate_by_name = True
-        json_schema_extra = {
-            "example": {
-                "alta": {
-                    "demanda_pacientes": 50,
-                    "estancia (días)": 5,
-                    "tipo de paciente_No Qx": 30,
-                    "tipo de paciente Qx": 20,
-                    "tipo de ingreso_No Urgente": 45,
-                    "tipo de ingreso Urgente": 15,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "baja": {
-                    "demanda_pacientes": 30,
-                    "estancia (días)": 3,
-                    "tipo de paciente_No Qx": 24,
-                    "tipo de paciente Qx": 6,
-                    "tipo de ingreso_No Urgente": 25,
-                    "tipo de ingreso Urgente": 5,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "media": {
-                    "demanda_pacientes": 40,
-                      "estancia (días)": 4,
-                    "tipo de paciente_No Qx": 40,
-                    "tipo de paciente Qx": 10,
-                    "tipo de ingreso_No Urgente": 75,
-                    "tipo de ingreso Urgente": 25,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "neonatología": {
-                    "demanda_pacientes": 15,
-                    "estancia (días)": 8,
-                    "tipo de paciente_No Qx": 9,
-                    "tipo de paciente Qx": 1,
-                    "tipo de ingreso_No Urgente": 5,
-                    "tipo de ingreso Urgente": 5,
-                    "fecha ingreso completa": "2025-10-20"
-                },
-                "pediatria": {
-                    "demanda_pacientes": 25,
-                    "estancia (días)": 4,
-                    "tipo de paciente_No Qx": 75,
-                    "tipo de paciente Qx": 25,
-                    "tipo de ingreso_No Urgente": 6,
-                    "tipo de ingreso Urgente": 4,
-                    "fecha ingreso completa": "2025-10-20"
-                }
-            }
-        }
-  
 class WeeklyDataResponse(BaseModel):
     """Respuesta del endpoint de envío de datos"""
     message: str = Field(..., description="Mensaje de confirmación")
@@ -273,7 +114,7 @@ class WeeklyDataResponse(BaseModel):
     }
 )
 async def post_data(
-    data: WeeklyDataRequest = Body(
+    data: WeeklyData = Body(
         ...,
         openapi_examples={
             "ejemplo_completo": {
