@@ -1,10 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator, ValidationError
-from datetime import datetime
+from pydantic import BaseModel, Field, ValidationError
 import pandas as pd
 import io
-from ..utils.storage import storage_manager
 from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
 
