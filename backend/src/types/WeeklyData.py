@@ -87,10 +87,10 @@ class WeeklyData(BaseModel):
             }
         }
 
-    def to_df(self):
+    def to_df(self, by_alias: bool = True):
         rows = []
-        for complexity_name, complexity_data in self.model_dump(by_alias=True).items():
-            row = {"Complejidad": complexity_name}
+        for complexity_name, complexity_data in self.model_dump(by_alias=by_alias).items():
+            row = {"Complejidad" if by_alias else "complejidad": complexity_name}
             row.update(complexity_data)
             rows.append(row)
 
