@@ -96,8 +96,8 @@ class WeeklyData(BaseModel):
 
         return pd.DataFrame(rows)
     
-    def save_csv(self, filename: str):
-        self.to_df().save_csv(filename)
+    def save_csv(self, filename: str, by_alias: bool = False):
+        self.to_df(by_alias=by_alias).to_csv(filename, index=False)
     
     @staticmethod
     def from_df(df: pd.DataFrame):
@@ -110,3 +110,12 @@ class WeeklyData(BaseModel):
       
     def to_json(self):
         return self.model_dump()
+    
+    @staticmethod
+    def from_json(json: dict):
+        return WeeklyData(**json)
+    
+    @staticmethod
+    def example():
+        return WeeklyData.from_json(WeeklyData.Config.json_schema_extra["example"])
+    
