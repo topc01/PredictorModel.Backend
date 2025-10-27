@@ -515,8 +515,8 @@ async def upload_data(
                 detail=f"Error de validación de datos: {e.errors()}"
             )
         try:        # Guardar el DataFrame procesado
-        filename = "weekly.csv"
-        storage_manager.save_csv(df, filename)
+            filename = "weekly.csv"
+            storage_manager.save_csv(df, filename)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

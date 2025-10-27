@@ -13,7 +13,8 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
         raise ValueError("El dataset no contiene una columna llamada 'complejidad'.")
 
     filas_prediccion = []
-
+    #TODO: Eliminar este print
+    print(datos_nuevos)
     # 2️⃣ Iterar sobre cada complejidad del input
     for complejidad_valor, datos in datos_nuevos.items():
 
