@@ -368,10 +368,12 @@ async def get_last_date():
   Obtiene la última fecha de datos semanales procesados.
   """
   try:
-    df = storage_manager.load_csv("weekly.csv")
+    data = WeeklyData.from_csv("data/weekly.csv")
+    df = data.to_df(by_alias=False)
+    last_date = df["fecha_ingreso"].max()
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
-      detail="No se encontraron datos semanales"
+      detail=f"No se encontraron datos semanales: {e}"
     )
-  return {"last_date": df["fecha ingreso completa"].max()}
+  return {"last_date": last_date}
