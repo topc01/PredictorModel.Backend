@@ -30,18 +30,18 @@ router = APIRouter(
 class PipelineProcessResponse(BaseModel):
     """Respuesta del procesamiento del pipeline."""
     message: str = Field(..., description="Mensaje de resultado")
-    complejidades_procesadas: Dict[str, str] = Field(
-        ..., 
-        description="Diccionario con complejidades procesadas y su estado"
-    )
-    archivos_generados: Dict[str, str] = Field(
-        ..., 
-        description="Rutas de los archivos CSV generados"
-    )
-    estadisticas: Dict[str, Dict[str, int]] = Field(
-        ..., 
-        description="Estadísticas de cada complejidad procesada"
-    )
+    # complejidades_procesadas: Dict[str, str] = Field(
+    #     ..., 
+    #     description="Diccionario con complejidades procesadas y su estado"
+    # )
+    # archivos_generados: Dict[str, str] = Field(
+    #     ..., 
+    #     description="Rutas de los archivos CSV generados"
+    # )
+    # estadisticas: Dict[str, Dict[str, int]] = Field(
+    #     ..., 
+    #     description="Estadísticas de cada complejidad procesada"
+    # )
     timestamp: str = Field(..., description="Timestamp del procesamiento")
     
     class Config:
@@ -156,39 +156,16 @@ async def process_excel(
         excel_file = io.BytesIO(contents)
         
         # Procesar Excel completo
-        dfs_por_complejidad = procesar_excel_completo(excel_file)
+        procesar_excel_completo(excel_file)
         
-        # Preparar respuesta
-        complejidades_procesadas = {}
-        archivos_generados = {}
-        estadisticas = {}
-        
-        for complejidad, df in dfs_por_complejidad.items():
-            if df is not None:
-                # Guardar CSV
-                filename = f"{complejidad}.csv"
-                filepath = storage_manager.save_csv(df, filename)
-                
-                complejidades_procesadas[complejidad] = "Procesada exitosamente"
-                archivos_generados[complejidad] = filepath
-                estadisticas[complejidad] = {
-                    "filas": len(df),
-                    "columnas": len(df.columns)
-                }
-            else:
-                complejidades_procesadas[complejidad] = "Datos insuficientes (< 55 semanas)"
-        
-        if not archivos_generados:
+        if not storage_manager.exists("dataset.csv"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No se pudo procesar ninguna complejidad. Verifique que el archivo tenga datos suficientes."
+                detail="No se pudo procesar el archivo. Verifique que el archivo tenga datos suficientes."
             )
         
         return PipelineProcessResponse(
             message="Archivo procesado exitosamente",
-            complejidades_procesadas=complejidades_procesadas,
-            archivos_generados=archivos_generados,
-            estadisticas=estadisticas,
             timestamp=datetime.now().isoformat()
         )
         
