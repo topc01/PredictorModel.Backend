@@ -114,6 +114,10 @@ class WeeklyData(BaseModel):
     @staticmethod
     def from_json(json: dict):
         return WeeklyData(**json)
+ 
+    @staticmethod
+    def from_csv(filename: str):
+        return WeeklyData.from_df(pd.read_csv(filename))
     
     @staticmethod
     def example():
