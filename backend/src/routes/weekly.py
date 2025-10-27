@@ -221,14 +221,12 @@ async def upload_data(
     
     El archivo debe contener una hoja con las 5 complejidades y sus respectivos datos.
     """
-    # Validar que se proporcionó un nombre de archivo
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se proporcionó un nombre de archivo"
         )
     
-    # Validar extensión del archivo
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -302,27 +300,14 @@ async def download_template():
     """
     Genera y descarga una plantilla de Excel con el formato correcto.
     """
-    # Crear DataFrame con datos de ejemplo
-    data = {
-        'complejidad': ['alta', 'baja', 'media', 'neonatología', 'pediatria'],
-        'demanda_pacientes': [50, 30, 40, 15, 25],
-        'estancia (días)': [5, 3, 4, 8, 4],
-        'tipo de paciente_No Qx': [30, 24, 40, 9, 75],
-        'tipo de paciente Qx': [20, 6, 10, 1, 25],
-        'tipo de ingreso_No Urgente': [45, 25, 75, 5, 6],
-        'tipo de ingreso Urgente': [15, 5, 25, 5, 4],
-        'fecha ingreso completa': ['2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20', '2025-10-20']
-    }
     
-    df = pd.DataFrame(data)
+    df = WeeklyData.example().to_df()
     
     # Crear archivo Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer: # type: ignore[arg-type]
         df.to_excel(writer, index=False, sheet_name='Datos Semanales')
         
-        # Obtener el workbook y worksheet para formatear
-        workbook = writer.book
         worksheet = writer.sheets['Datos Semanales']
         
         # Ajustar ancho de columnas
