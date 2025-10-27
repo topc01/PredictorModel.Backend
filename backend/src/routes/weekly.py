@@ -125,20 +125,39 @@ async def post_data(
     y los valida antes de procesarlos para predicciones futuras.
     """
     try:
-        # Aquí puedes procesar los datos recibidos
-        df = pd.DataFrame(data.model_dump(by_alias=True))
-        filename = "weekly.csv"
-        storage_manager.save_csv(df, filename)
-        preparar_datos_prediccion_global(df)
-        return WeeklyDataResponse(
-            message="Datos recibidos correctamente",
-            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=data.model_dump(by_alias=True)
+        
+        data.save_csv("data/weekly.csv")
+        
+        # preparar_datos_prediccion_global(data.model_dump())
+
+        return {
+            "message": "Datos recibidos correctamente",
+        }
+        
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Error de validación de datos: {e.errors()}"
+        )
+    except pd.errors.EmptyDataError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo Excel está vacío"
+        )
+    except pd.errors.ParserError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error al leer el archivo Excel: formato inválido"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al procesar los datos: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error procesando los datos: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno al procesar el archivo: {str(e)}"
         )
         
 @router.post(
@@ -217,113 +236,25 @@ async def upload_data(
         )
     
     try:
-        # Leer el contenido del archivo
         contents = await file.read()
         
-        # Cargar el Excel con pandas
         df = pd.read_excel(io.BytesIO(contents))
         
-        # Validar que tenga la columna 'complejidad'
-        if 'complejidad' not in df.columns:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El archivo debe contener una columna 'complejidad'"
-            )
+        data = WeeklyData.from_df(df)
         
-        # Normalizar nombres de complejidades (minúsculas, sin tildes en comparación)
-        df['complejidad'] = df['complejidad'].str.lower().str.strip()
+        data.save_csv("data/weekly.csv")
         
-        # Validar que estén las 5 complejidades requeridas
-        required_complexities = {'alta', 'baja', 'media', 'neonatología', 'pediatria'}
-        found_complexities = set(df['complejidad'].unique())
+        # preparar_datos_prediccion_global(data.model_dump())
         
-        # También aceptar sin tilde
-        if 'neonatologia' in found_complexities:
-            df.loc[df['complejidad'] == 'neonatologia', 'complejidad'] = 'neonatología'
-            found_complexities = set(df['complejidad'].unique())
-        
-        missing = required_complexities - found_complexities
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Faltan las siguientes complejidades: {', '.join(missing)}"
-            )
-        
-        # Validar que tenga todas las columnas necesarias
-        required_columns = {
-            'complejidad',
-            'demanda_pacientes',
-            'estancia (días)',
-            'tipo de paciente_No Qx',
-            'tipo de paciente Qx',
-            'tipo de ingreso_No Urgente',
-            'tipo de ingreso Urgente',
-            'fecha ingreso completa'
+        return {
+            "message": "Archivo procesado correctamente"
         }
         
-        missing_columns = required_columns - set(df.columns)
-        if missing_columns:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Faltan las siguientes columnas: {', '.join(missing_columns)}"
-            )
-        
-        # Construir el objeto WeeklyDataRequest desde el DataFrame
-        data_dict = {}
-        
-        for _, row in df.iterrows():
-            complexity = row['complejidad']
-            
-            # Convertir fecha a string si es necesario
-            fecha = row['fecha ingreso completa']
-            if isinstance(fecha, pd.Timestamp):
-                fecha = fecha.strftime('%Y-%m-%d')
-            elif not isinstance(fecha, str):
-                fecha = str(fecha)
-            
-            complexity_data = {
-                'demanda_pacientes': float(row['demanda_pacientes']),
-                'estancia (días)': float(row['estancia (días)']),
-                'tipo de paciente_No Qx': float(row['tipo de paciente_No Qx']),
-                'tipo de paciente Qx': float(row['tipo de paciente Qx']),
-                'tipo de ingreso_No Urgente': float(row['tipo de ingreso_No Urgente']),
-                'tipo de ingreso Urgente': float(row['tipo de ingreso Urgente']),
-                'fecha ingreso completa': fecha
-            }
-            
-            data_dict[complexity] = complexity_data
-        
-        # Validar con Pydantic
-        try:
-            validated_data = WeeklyDataRequest(**data_dict)
-        except ValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Error de validación de datos: {e.errors()}"
-            )
-        try:        # Guardar el DataFrame procesado
-            filename = "weekly.csv"
-            storage_manager.save_csv(df, filename)
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error al gaurdar los datos: {str(e)}"
-            )
-        
-        try:
-            preparar_datos_prediccion_global(validated_data.model_dump())
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error al procesar los datos: {str(e)}"
-            )
-        # Retornar respuesta exitosa
-        return WeeklyDataResponse(
-            message="Archivo procesado correctamente",
-            complejidades_recibidas=["alta", "baja", "media", "neonatología", "pediatria"],
-            data=validated_data.model_dump(by_alias=True)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Error de validación de datos: {e.errors()}"
         )
-        
     except pd.errors.EmptyDataError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
