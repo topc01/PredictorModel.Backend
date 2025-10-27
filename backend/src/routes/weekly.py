@@ -44,7 +44,6 @@ class WeeklyDataResponse(BaseModel):
 @router.post(
     "/send", 
     status_code=status.HTTP_200_OK,
-    response_model=WeeklyDataResponse,
     summary="Enviar datos semanales de complejidades",
     description="""
     Recibe datos históricos de la semana anterior para las 5 complejidades hospitalarias.
@@ -116,59 +115,7 @@ class WeeklyDataResponse(BaseModel):
 async def post_data(
     data: WeeklyData = Body(
         ...,
-        openapi_examples={
-            "ejemplo_completo": {
-                "summary": "Ejemplo con datos de todas las complejidades",
-                "description": "Ejemplo completo con datos realistas para las 5 complejidades",
-                "value": {
-                    "alta": {
-                        "demanda_pacientes": 50,
-                        "estancia (días)": 5,
-                        "tipo de paciente_No Qx": 30,
-                        "tipo de paciente Qx": 20,
-                        "tipo de ingreso_No Urgente": 45,
-                        "tipo de ingreso Urgente": 15,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "baja": {
-                        "demanda_pacientes": 30,
-                        "estancia (días)": 3,
-                        "tipo de paciente_No Qx": 24,
-                        "tipo de paciente Qx": 6,
-                        "tipo de ingreso_No Urgente": 25,
-                        "tipo de ingreso Urgente": 5,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "media": {
-                        "demanda_pacientes": 40,
-                        "estancia (días)": 4.5,
-                        "tipo de paciente_No Qx": 0.7,
-                        "tipo de paciente Qx": 0.3,
-                        "tipo de ingreso_No Urgente": 0.75,
-                        "tipo de ingreso Urgente": 0.25,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "neonatología": {
-                        "demanda_pacientes": 15,
-                        "estancia (días)": 8.0,
-                        "tipo de paciente_No Qx": 0.9,
-                        "tipo de paciente Qx": 0.1,
-                        "tipo de ingreso_No Urgente": 0.5,
-                        "tipo de ingreso Urgente": 0.5,
-                        "fecha ingreso completa": "2025-10-20"
-                    },
-                    "pediatria": {
-                        "demanda_pacientes": 25,
-                        "estancia (días)": 4.0,
-                        "tipo de paciente_No Qx": 0.75,
-                        "tipo de paciente Qx": 0.25,
-                        "tipo de ingreso_No Urgente": 0.6,
-                        "tipo de ingreso Urgente": 0.4,
-                        "fecha ingreso completa": "2025-10-20"
-                    }
-                }
-            }
-        }
+        description="Datos semanales de todas las complejidades hospitalarias"
     )
 ):
     """
@@ -197,7 +144,6 @@ async def post_data(
 @router.post(
     "/upload", 
     status_code=status.HTTP_200_OK,
-    response_model=WeeklyDataResponse,
     summary="Subir archivo Excel con datos semanales",
     description="""
     Sube un archivo Excel (.xlsx) con datos semanales de todas las complejidades.
