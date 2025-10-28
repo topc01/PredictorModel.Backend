@@ -12,7 +12,7 @@ import pandas as pd
 import io
 import zipfile
 from datetime import datetime
-
+import os
 from ..pipeline import procesar_excel_completo
 from ..utils.storage import storage_manager
 
@@ -336,44 +336,25 @@ async def process_excel(
     Retorna información sobre qué complejidades han sido procesadas
     y están disponibles para descarga o predicción.
     """,
+    responses={
+        200: {
+            "description": "Archivo procesado exitosamente",
+        },
+        204: {
+            "description": "El archivo excel de datos históricos no ha sido procesado",
+        }
+    }
 )
 async def pipeline_status():
     """
     Obtiene el estado del pipeline y archivos disponibles.
     """
-    complejidades = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
-    estado = {}
-    
-    for complejidad in complejidades:
-        filename = f"{complejidad}.csv"
-        existe = storage_manager.exists(filename)
-        
-        if existe:
-            try:
-                df = storage_manager.load_csv(filename)
-                estado[complejidad] = {
-                    "procesado": True,
-                    "filas": len(df),
-                    "columnas": len(df.columns),
-                    "ultima_semana": df['semana_año'].iloc[-1] if 'semana_año' in df.columns else None
-                }
-            except Exception as e:
-                estado[complejidad] = {
-                    "procesado": True,
-                    "error": str(e)
-                }
-        else:
-            estado[complejidad] = {
-                "procesado": False
-            }
-    
-    archivos_procesados = sum(1 for c in estado.values() if c.get("procesado", False))
-    
-    return {
-        "message": "Estado del pipeline",
-        "total_complejidades": len(complejidades),
-        "archivos_procesados": archivos_procesados,
-        "storage_type": storage_manager.storage_type,
-        "complejidades": estado
-    }
+    if os.path.exists("data/dataset.csv"):
+        return {
+          "message": "Archivo procesado exitosamente"
+        }
+    raise HTTPException(
+      status_code=status.HTTP_204_NO_CONTENT,
+      detail="El archivo excel de datos históricos no ha sido procesado"
+    )
 
