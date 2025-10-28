@@ -122,4 +122,3 @@ def preparar_datos_prediccion_por_complejidad(
         df_historico = pd.concat([df_historico, pd.DataFrame([nueva_fila])], ignore_index=True)
     
     return semanal, df_historico
-
