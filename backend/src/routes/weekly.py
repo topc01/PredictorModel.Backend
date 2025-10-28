@@ -270,6 +270,11 @@ async def upload_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error al procesar los datos: {str(e)}"
         )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo excel de datos históricos no ha sido procesado"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
