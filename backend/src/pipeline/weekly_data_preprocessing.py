@@ -6,7 +6,8 @@ from ..utils.storage import storage_manager
 def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
 
     # 1️⃣ Cargar dataset histórico completo
-    df_total = storage_manager.load_csv(filename)
+    # df_total = storage_manager.load_csv(filename)
+    df_total = pd.read_csv(f"data/{filename}")
 
     # Validar columnas
     if 'complejidad' not in df_total.columns:
@@ -96,12 +97,13 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
         filas_prediccion.append(fila)
 
     # --- Guardar dataset actualizado ---
-    storage_manager.save_csv(df_total, filename)
+    # storage_manager.save_csv(df_total, filename)
+    df_total.to_csv(f"data/3_{filename}", index=False)
 
     # --- Generar CSV con los nuevos datos de predicción ---
     df_prediccion = pd.DataFrame(filas_prediccion)
-    storage_manager.save_csv(df_prediccion, "predictions.csv")
-
+    # storage_manager.save_csv(df_prediccion, "predictions.csv")
+    df_prediccion.to_csv(f"data/3_predictions.csv", index=False)
     # print(f"✅ Dataset actualizado: {ruta_dataset}")
     # print(f"✅ Archivo de predicciones generado: datos_prediccion_semanal.csv")
 
