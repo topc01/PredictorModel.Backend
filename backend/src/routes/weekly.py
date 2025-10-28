@@ -128,7 +128,7 @@ async def post_data(
         data.save_csv("data/weekly.csv", by_alias=True)
         
         json = data.model_dump()
-        # preparar_datos_prediccion_global(json)
+        preparar_datos_prediccion_global(json)
 
         return {
             "message": "Datos recibidos correctamente",
@@ -244,7 +244,7 @@ async def upload_data(
           include_groups=False
           ).to_dict()
         
-        # preparar_datos_prediccion_global(json)
+        preparar_datos_prediccion_global(json)
         
         return {
             "message": "Archivo procesado correctamente"
