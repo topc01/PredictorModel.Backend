@@ -101,10 +101,11 @@ class WeeklyData(BaseModel):
     
     @staticmethod
     def from_df(df: pd.DataFrame):
+        by_alias = df.columns.str.contains("Complejidad").any()
         complexity_map = {}
         for _, row in df.iterrows():
-            key = row["complejidad"]
-            data = row.drop("complejidad").to_dict()
+            key = row["Complejidad" if by_alias else "complejidad"]
+            data = row.drop("Complejidad" if by_alias else "complejidad").to_dict()
             complexity_map[key] = WeeklyComplexityData(**data)
         return WeeklyData(**complexity_map)
       
