@@ -13,7 +13,7 @@ import io
 import zipfile
 from datetime import datetime
 
-from ..pipeline.data_cleaner import procesar_excel_completo
+from ..pipeline import procesar_excel_completo
 from ..utils.storage import storage_manager
 
 
