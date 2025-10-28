@@ -124,9 +124,10 @@ async def post_data(
     """
     try:
         
-        data.save_csv("data/weekly.csv")
+        data.save_csv("data/weekly.csv", by_alias=True)
         
-        # preparar_datos_prediccion_global(data.model_dump())
+        json = data.model_dump()
+        # preparar_datos_prediccion_global(json)
 
         return {
             "message": "Datos recibidos correctamente",
@@ -235,12 +236,14 @@ async def upload_data(
         contents = await file.read()
         
         df = pd.read_excel(io.BytesIO(contents))
+        df.to_csv("data/weekly.csv", index=False)
         
-        data = WeeklyData.from_df(df)
+        json = df.groupby("Complejidad").apply(
+          lambda x: x.to_dict(orient="records"),
+          include_groups=False
+          ).to_dict()
         
-        data.save_csv("data/weekly.csv")
-        
-        # preparar_datos_prediccion_global(data.model_dump())
+        # preparar_datos_prediccion_global(json)
         
         return {
             "message": "Archivo procesado correctamente"
@@ -299,9 +302,19 @@ async def download_template():
     Genera y descarga una plantilla de Excel con el formato correcto.
     """
     
-    df = WeeklyData.example().to_df()
+    data = {
+        'Complejidad': ['Alta', 'Baja', 'Media', 'Neonatología', 'Pediatría'],
+        'Demanda pacientes': [50, 30, 40, 15, 25],
+        'Estancia (días promedio)': [5.2, 3.8, 4, 8.2, 4],
+        'Pacientes no Qx': [30, 24, 40, 9, 75],
+        'Pacientes Qx': [20, 6, 10, 1, 25],
+        'Ingresos no urgentes': [45, 25, 75, 5, 6],
+        'Ingresos urgentes': [15, 5, 25, 5, 4],
+        'Fecha ingreso': [datetime.now().strftime('%Y-%m-%d')] * 5
+    }
     
-    # Crear archivo Excel en memoria
+    df = pd.DataFrame(data)
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer: # type: ignore[arg-type]
         df.to_excel(writer, index=False, sheet_name='Datos Semanales')
@@ -366,9 +379,8 @@ async def get_last_date():
   Obtiene la última fecha de datos semanales procesados.
   """
   try:
-    data = WeeklyData.from_csv("data/weekly.csv")
-    df = data.to_df(by_alias=False)
-    last_date = df["fecha_ingreso"].max()
+    df = pd.read_csv("data/weekly.csv")
+    last_date = df["Fecha ingreso"].max()
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
