@@ -78,20 +78,20 @@ class PipelineProcessResponse(BaseModel):
     description="""
     Procesa un archivo Excel con datos hospitalarios crudos y genera datasets limpios por complejidad.
     
-    **Requisitos del archivo Excel:**
-    - Debe tener **al menos 3 hojas**
-    - **Hoja 0**: Datos principales de pacientes con columnas:
-        - `Servicio Ingreso (Código)`
-        - `Fecha Ingreso Completa`
-        - `Estancia (Días)`
-        - `Tipo de Paciente`
-        - `Tipo de Ingreso`
+    Requisitos del archivo Excel:
+    - Debe tener al menos 3 hojas
+    - Hoja 0: Datos principales de pacientes con columnas:
+        - Servicio Ingreso (Código)
+        - Fecha Ingreso Completa
+        - Estancia (Días)
+        - Tipo de Paciente
+        - Tipo de Ingreso
         - Y otras columnas de metadata
-    - **Hoja 2**: Datos de servicios/complejidad con columnas:
-        - `UO trat.` (código de unidad)
-        - `Complejidad`
+    - Hoja 2: Datos de servicios/complejidad con columnas:
+        - UO trat. (código de unidad)
+        - Complejidad
     
-    **Proceso realizado:**
+    Proceso realizado:
     1. Limpieza y normalización de datos
     2. Merge de hojas de datos
     3. Creación de features temporales (semana, mes, estación)
@@ -100,14 +100,14 @@ class PipelineProcessResponse(BaseModel):
     6. Creación de lags (1, 2, 3, 4, 10, 52 semanas)
     7. Generación de CSV por complejidad
     
-    **Complejidades procesadas:**
+    Complejidades procesadas:
     - Alta
     - Media
     - Baja
     - Neonatología
     - Pediatría
     
-    **Nota:** Las complejidades con menos de 55 semanas de datos no serán procesadas.
+    Nota: Las complejidades con menos de 55 semanas de datos no serán procesadas.
     """,
     responses={
         200: {
