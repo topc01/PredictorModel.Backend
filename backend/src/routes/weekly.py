@@ -5,6 +5,7 @@ import pandas as pd
 import io
 from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
+from datetime import datetime
 
 router = APIRouter(
     tags=["Weekly Data"],
