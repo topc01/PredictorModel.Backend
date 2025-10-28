@@ -95,12 +95,12 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
 
     # --- Guardar dataset actualizado ---
     # storage_manager.save_csv(df_total, filename)
-    df_total.to_csv(f"data/3_{filename}", index=False)
+    df_total.to_csv(f"data/{filename}", index=False)
 
     # --- Generar CSV con los nuevos datos de predicción ---
     df_prediccion = pd.DataFrame(filas_prediccion)
     # storage_manager.save_csv(df_prediccion, "predictions.csv")
-    df_prediccion.to_csv(f"data/3_predictions.csv", index=False)
+    df_prediccion.to_csv(f"data/predictions.csv", index=False)
     # print(f"✅ Dataset actualizado: {ruta_dataset}")
     # print(f"✅ Archivo de predicciones generado: datos_prediccion_semanal.csv")
 
