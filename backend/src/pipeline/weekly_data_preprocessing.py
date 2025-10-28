@@ -14,21 +14,18 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
         raise ValueError("El dataset no contiene una columna llamada 'complejidad'.")
 
     filas_prediccion = []
-    #TODO: Eliminar este print
-    print(datos_nuevos)
     # 2️⃣ Iterar sobre cada complejidad del input
     for complejidad_valor, datos in datos_nuevos.items():
 
         # Convertir a DataFrame
-        df_nueva = pd.DataFrame([datos])
+        df_nueva = pd.DataFrame(datos)
 
         # Filtrar histórico de esa complejidad
         df_hist = df_total[df_total['complejidad'].str.lower() == complejidad_valor.lower()].copy()
-
+        
         # --- Procesar fechas ---
-        df_nueva['fecha_ingreso_completa'] = pd.to_datetime(df_nueva['fecha ingreso completa'], errors='coerce')
+        df_nueva['fecha_ingreso_completa'] = pd.to_datetime(df_nueva['Fecha ingreso'], errors='coerce')
         fecha_actual = df_nueva['fecha_ingreso_completa'].iloc[0]
-
         # Semana actual y a predecir
         inicio_semana_actual = fecha_actual - pd.to_timedelta(fecha_actual.weekday(), unit='d')
         inicio_semana_predecir = inicio_semana_actual + pd.Timedelta(weeks=1)
@@ -56,11 +53,11 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
             'demanda_lag4': np.nan,
             'demanda_lag10': np.nan,
             'demanda_lag52': np.nan,
-            'estancia (días)_lag1': df_nueva['estancia (días)'].iloc[0],
-            'tipo de paciente_No Qx_lag1': df_nueva['tipo de paciente_No Qx'].iloc[0],
-            'tipo de paciente_Qx_lag1': df_nueva['tipo de paciente Qx'].iloc[0],
-            'tipo de ingreso_No Urgente_lag1': df_nueva['tipo de ingreso_No Urgente'].iloc[0],
-            'tipo de ingreso_Urgente_lag1': df_nueva['tipo de ingreso_Urgente'].iloc[0],
+            'estancia (días)_lag1': df_nueva['Estancia (días promedio)'].iloc[0],
+            'tipo de paciente_No Qx_lag1': df_nueva['Pacientes no Qx'].iloc[0],
+            'tipo de paciente_Qx_lag1': df_nueva['Pacientes Qx'].iloc[0],
+            'tipo de ingreso_No Urgente_lag1': df_nueva['Ingresos no urgentes'].iloc[0],
+            'tipo de ingreso_Urgente_lag1': df_nueva['Ingresos urgentes'].iloc[0],
             'estacion_invierno_lag1': 1 if estacion=="invierno" else 0,
             'estacion_otoño_lag1': 1 if estacion=="otoño" else 0,
             'estacion_primavera_lag1': 1 if estacion=="primavera" else 0,
@@ -82,7 +79,7 @@ def preparar_datos_prediccion_global(datos_nuevos, filename="dataset.csv"):
 
         # --- Actualizar dataset global directamente ---
         mask = (df_total['complejidad'].str.lower() == complejidad_valor.lower()) & (df_total['semana_año'] == semana_lag1)
-        demanda_real = df_nueva['demanda_pacientes'].iloc[0]
+        demanda_real = df_nueva['Demanda pacientes'].iloc[0]
 
         if mask.any():
             df_total.loc[mask, 'demanda_pacientes'] = demanda_real
