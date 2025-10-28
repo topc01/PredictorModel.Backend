@@ -158,12 +158,6 @@ async def process_excel(
         # Procesar Excel completo
         procesar_excel_completo(excel_file)
         
-        if not storage_manager.exists("dataset.csv"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No se pudo procesar el archivo. Verifique que el archivo tenga datos suficientes."
-            )
-        
         return PipelineProcessResponse(
             message="Archivo procesado exitosamente",
             timestamp=datetime.now().isoformat()
