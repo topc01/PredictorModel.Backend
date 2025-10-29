@@ -5,12 +5,11 @@ This module contains functions to process raw Excel files and prepare
 data for machine learning predictions.
 """
 
-from .data_cleaner import limpiar_excel_inicial, preparar_datos_por_complejidad
-from .prediction_preparer import preparar_datos_prediccion_por_complejidad
+from .limpieza_datos_uc import procesar_excel_completo
+from .preprocesar_datos_semanales import preparar_datos_prediccion_global
 
 __all__ = [
-    'limpiar_excel_inicial',
-    'preparar_datos_por_complejidad',
-    'preparar_datos_prediccion_por_complejidad',
+    'procesar_excel_completo',
+    'preparar_datos_prediccion_global',
 ]
 
