@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.routes import weekly, data, storage, predict
+from app.routes import weekly, data, storage, predict
 
 router = APIRouter()
 

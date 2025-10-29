@@ -23,7 +23,7 @@ def test_health():
         return True
     except Exception as e:
         print(f"❌ Error: Servidor no disponible - {e}")
-        print("   Asegúrate de ejecutar: uvicorn src.main:app --reload\n")
+        print("   Asegúrate de ejecutar: uvicorn app.main:app --reload\n")
         return False
 
 

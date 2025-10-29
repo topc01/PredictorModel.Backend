@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from src.predictor import predict
+from app.predictor import predict
 
 router = APIRouter(
     tags=["Predict"],
