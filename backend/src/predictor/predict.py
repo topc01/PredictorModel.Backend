@@ -76,7 +76,7 @@ def predict(complexity: str):
     model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
     np.random.seed(42)
     model = joblib.load(model_path)
-
+    print(f"Modelo cargado desde {model_path}")
     
     ## Realizar la predicción
     if complexity == "baja":
@@ -87,11 +87,58 @@ def predict(complexity: str):
 
         forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
         print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(1))
-    elif complexity in ["media", "alta", "neonatología", "pediatría"]:
-        print("Usando modelo Random Forest")
+
+    elif complexity == "media":
+        print("🌲 Usando modelo RandomForest")
+        print(df.head())
+        print(df.columns)
         X_pred = df.drop(columns=["demanda_pacientes", "complejidad"])
+
+        X_pred['año'] = X_pred['semana_año'].str.split('-').str[0].astype(int)
+        X_pred['semana'] = X_pred['semana_año'].str.split('-').str[1].astype(int)
+
+        X_pred['semana_continua'] = X_pred['año'] + X_pred['semana'] / 100
+
+        X_pred = X_pred.drop(columns=['semana_año'])
+        X_pred = X_pred.select_dtypes(exclude=['datetime64[ns]'])
+
+        y_pred = model.predict(X_pred)
+        result = {
+            "modelo": "RandomForest",
+            "prediccion": float(y_pred[-1]),
+        }
+        print(result)
+    elif complexity == "alta":
+        print("Usando modelo Random Forest")
+        print(df.head())
+        print(df.columns)
+        X_pred = df.drop(columns=["demanda_pacientes", "complejidad"])
+
+        X_pred['año'] = X_pred['semana_año'].str.split('-').str[0].astype(int)
+        X_pred['semana'] = X_pred['semana_año'].str.split('-').str[1].astype(int)
+
+        X_pred['semana_continua'] = X_pred['año'] + X_pred['semana'] / 100
+
+        X_pred = X_pred.drop(columns=['semana_año'])
+        X_pred = X_pred.select_dtypes(exclude=['datetime64[ns]'])
+
         y_pred = model.predict(X_pred)
         print(f"Predicción: {y_pred[-1]}")
+
+    elif complexity == "neonatologia":
+        future = model.make_future_dataframe(periods=1, freq='W')
+
+        forecast = model.predict(future)
+
+        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
+        print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(1))
+    elif complexity == "pediatria":
+        future = model.make_future_dataframe(periods=1, freq='W')
+
+        forecast = model.predict(future)
+
+        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
+        print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(1))
     
     return {"message": "Predicción realizada correctamente", "complexity": complexity}
 
