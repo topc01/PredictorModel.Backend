@@ -1,0 +1,16 @@
+{
+    "modelo": "RandomForestRegressor",
+    "mejores_parametros": {
+        "bootstrap": true,
+        "criterion": "squared_error",
+        "max_depth": null,
+        "max_features": "sqrt",
+        "max_samples": 0.7,
+        "min_samples_leaf": 1,
+        "min_samples_split": 2,
+        "n_estimators": 100
+    },
+    "MAE": 11.168333333333333,
+    "RMSE": 224.95745,
+    "R2": 0.5002179585287584
+}

@@ -1,0 +1,13 @@
+{
+    "modelo": "Prophet",
+    "fecha_entrenamiento": "2025-10-29 21:32:20",
+    "configuracion": {
+        "yearly_seasonality": true,
+        "weekly_seasonality": false,
+        "daily_seasonality": false,
+        "seasonality_mode": "additive"
+    },
+    "MAE": 11.36,
+    "RMSE": 14.21,
+    "R2": 0.617
+}
