@@ -237,6 +237,7 @@ async def upload_data(
         contents = await file.read()
         
         df = pd.read_excel(io.BytesIO(contents))
+        WeeklyData.from_df(df)
         df.to_csv("data/weekly.csv", index=False)
         
         json = df.groupby("Complejidad").apply(
