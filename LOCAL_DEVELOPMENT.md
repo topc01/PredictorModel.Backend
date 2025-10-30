@@ -133,7 +133,7 @@ uv run dev
 Or manually:
 
 ```bash
-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Your backend will be available at: <http://localhost:8000>
@@ -190,7 +190,7 @@ The backend already has S3 utilities configured. Here's how to use them:
 ### Example: Upload a file to S3
 
 ```python
-from src.utils.storage import storage_manager
+from app.utils.storage import storage_manager
 import pandas as pd
 
 # Create some data
