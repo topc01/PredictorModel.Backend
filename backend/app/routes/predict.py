@@ -51,7 +51,7 @@ async def predict_complexity(complexity: str):
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
     # Validar complejidad
-    valid_complexities = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
+    valid_complexities = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría','Neonatologia', 'Pediatria']
     if complexity not in valid_complexities:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
