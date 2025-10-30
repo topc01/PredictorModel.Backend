@@ -393,4 +393,4 @@ async def get_last_date():
       status_code=status.HTTP_404_NOT_FOUND,
       detail=f"No se encontraron datos semanales: {e}"
     )
-  return {"last_date": last_date}
+  return {"date": last_date}
