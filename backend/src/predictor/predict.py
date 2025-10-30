@@ -5,13 +5,14 @@ import numpy as np
 import prophet
 import joblib
 
-def pre_process_X_pred(df: pd.DataFrame):
+def pre_process_X_pred(df: pd.DataFrame, feature_names: list) -> pd.DataFrame:
     X = df.drop(columns=["demanda_pacientes", "complejidad"])
     X['año'] = X['semana_año'].str.split('-').str[0].astype(int)
     X['semana'] = X['semana_año'].str.split('-').str[1].astype(int)
     X['semana_continua'] = X['año'] + X['semana'] / 100
     X = X.drop(columns=['semana_año'])
     X = X.select_dtypes(exclude=['datetime64[ns]'])
+    X = X[feature_names]
     return X
 
 def predict_prophet_model(model, periods: int = 1):
@@ -69,21 +70,22 @@ def predict(complexity: str):
 
     ## Cargar datos desde CSV (CAMBIABLE)
     
-    DATA_PATH = BASE_DIR / "data" / "datos_prediccion_semanal.csv" # cambiar a prediccion.csv en prod
+    DATA_PATH = BASE_DIR / "data" / "datos_prediccion_semanal.csv"
 
     data_total = pd.read_csv(DATA_PATH)
     complexity = complexity.lower()
     df = data_total[data_total["complejidad"] == complexity]
     print(df.head())
+
+    feature_names = joblib.load("models/feature_names.pkl")
+
     try:
         model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
         np.random.seed(42)
         model = joblib.load(model_path)
+        print(f"modelo cargado en pkl")
     except Exception as e:
-        print(f"modelo en formato no .pkl... probando json")
-        with open(result_path, "r", encoding="utf-8") as f:
-            result = json.load(f)
-        model = joblib.load(model_path)
+        print(f"error {e}")
 
     try:
         result_path = BASE_DIR / "models" / f"results_{complexity}.json"
@@ -96,38 +98,39 @@ def predict(complexity: str):
 
     ## Realizar la predicción
     if complexity == "baja":
-        print("Usando modelo Prophet")
         result = predict_prophet_model(model, periods=1)
-        print(result)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-
     elif complexity == "media":
-        print("🌲 Usando modelo RandomForest")
-        print(df.head())
-        print(df.columns)
-        X_pred = pre_process_X_pred(df)
+        X_pred = pre_process_X_pred(df, feature_names)
         result = predict_random_forest(model, X_pred)
-        return result
+        prediccion = result["prediccion"]
+        lower = result["intervalo_confianza"][0]
+        upper = result["intervalo_confianza"][1]
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
     elif complexity == "alta":
-        print("Usando modelo Random Forest")
-        print(df.head())
-        print(df.columns)
-        X_pred = pre_process_X_pred(df)
-        result = predict_random_forest(model, X_pred)
-        return result
+        result = predict_prophet_model(model, periods=1)
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
     elif complexity == "neonatologia":
         result = predict_prophet_model(model, periods=1)
-        print(result)
-        return {"prediccion": result.to_dict(orient='records')}
-
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
     elif complexity == "pediatria":
         result = predict_prophet_model(model, periods=1)
-        print(result)
-        return {"prediccion": result.to_dict(orient='records')}
-    
-    return {"message": "Predicción realizada correctamente", "complexity": complexity}
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
 
