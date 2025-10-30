@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -80,15 +81,29 @@ def predict(complexity: str):
         model = joblib.load(model_path)
     except Exception as e:
         print(f"modelo en formato no .pkl... probando json")
-        model_path = BASE_DIR / "models" / f"model_{complexity}.json"
+        with open(result_path, "r", encoding="utf-8") as f:
+            result = json.load(f)
         model = joblib.load(model_path)
+
+    try:
+        result_path = BASE_DIR / "models" / f"results_{complexity}.json"
+        with open(result_path, "r", encoding="utf-8") as f:
+            metrics_models = json.load(f)
+        print("Resultados cargados desde JSON:")
+        print(metrics_models)
+    except Exception as e:
+        print(f"No se pudo cargar resultados desde JSON: {e}")
 
     ## Realizar la predicción
     if complexity == "baja":
         print("Usando modelo Prophet")
         result = predict_prophet_model(model, periods=1)
         print(result)
-        return {"prediccion": result.to_dict(orient='records')}
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
 
     elif complexity == "media":
         print("🌲 Usando modelo RandomForest")
