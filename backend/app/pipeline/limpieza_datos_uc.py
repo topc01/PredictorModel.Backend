@@ -253,4 +253,3 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
     
     df_final = pd.concat(dfs_todos, ignore_index=True).sort_values(['semana_año', 'complejidad'])
     df_final.to_csv("data/dataset.csv", index=False)
-
