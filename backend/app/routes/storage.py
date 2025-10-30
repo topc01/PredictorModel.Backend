@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
 import os
-from app.utils.storage import check_bucket_access, get_bucket_info
+from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
 
 router = APIRouter(
     tags=["Storage"],
