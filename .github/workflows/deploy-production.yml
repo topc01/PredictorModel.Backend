@@ -19,6 +19,16 @@ permissions:
   contents: read
 
 jobs:
+  testing:
+    name: Test code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testing backend code
+        working-directory: ./backend
+        run: |
+          echo "Running tests"
+          uv run pytest --cov=app --cov-report=term-missing -v
+
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest

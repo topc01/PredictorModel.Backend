@@ -5,6 +5,9 @@ import numpy as np
 import prophet
 import joblib
 
+def without_tilde(string: str) -> str:
+    return string.replace('í', 'i')
+
 def pre_process_X_pred(df: pd.DataFrame, feature_names: list) -> pd.DataFrame:
     X = df.drop(columns=["demanda_pacientes", "complejidad"])
     X['año'] = X['semana_año'].str.split('-').str[0].astype(int)
@@ -80,7 +83,7 @@ def predict(complexity: str):
     feature_names = joblib.load("models/feature_names.pkl")
 
     try:
-        model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
+        model_path = BASE_DIR / "models" / f"model_{without_tilde(complexity)}.pkl"
         np.random.seed(42)
         model = joblib.load(model_path)
         print(f"modelo cargado en pkl")
@@ -88,7 +91,7 @@ def predict(complexity: str):
         print(f"error {e}")
 
     try:
-        result_path = BASE_DIR / "models" / f"results_{complexity}.json"
+        result_path = BASE_DIR / "models" / f"results_{without_tilde(complexity)}.json"
         with open(result_path, "r", encoding="utf-8") as f:
             metrics_models = json.load(f)
         print("Resultados cargados desde JSON:")
@@ -134,3 +137,4 @@ def predict(complexity: str):
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
+

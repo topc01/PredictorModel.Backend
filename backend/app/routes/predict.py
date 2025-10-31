@@ -74,4 +74,10 @@ async def predict_complexity(complexity: str):
     #         status_code=status.HTTP_400_BAD_REQUEST,
     #         detail=f"Complejidad inválida. Valores permitidos: {', '.join(valid_complexities)}"
     #     )
-    return predict(parse(complexity))
+    prediction = predict(parse(complexity))
+    if prediction is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo realizar la predicción para la complejidad {complexity}."
+        )
+    return prediction
