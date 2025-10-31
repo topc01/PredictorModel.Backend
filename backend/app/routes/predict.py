@@ -14,12 +14,12 @@ router = APIRouter(
   summary="Realizar predicción", 
   description="""Realiza una predicción para una complejidad específica.
   
-  **Complejidades disponibles:**
-    - `Alta`
-    - `Media`
-    - `Baja`
-    - `Neonatología`
-    - `Pediatría`
+  Complejidades disponibles:
+    - alta
+    - media
+    - baja
+    - neonatologia
+    - pediatria
   """,
   responses={
     200: {
@@ -50,11 +50,34 @@ async def predict_complexity(complexity: str):
     Args:
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
+    def parse(complexity: str) -> str:
+        match complexity:
+            case 'alta':
+                return 'Alta'
+            case 'media':
+                return 'Media'
+            case 'baja':
+                return 'Baja'
+            case 'neonatologia':
+                return 'Neonatología'
+            case 'pediatria':
+                return 'Pediatría'
+            case _:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Complejidad {complexity} inválida."
+                )
     # Validar complejidad
-    valid_complexities = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría']
-    if complexity not in valid_complexities:
+    # valid_complexities = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría','Neonatologia', 'Pediatria']
+    # if complexity not in valid_complexities:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail=f"Complejidad inválida. Valores permitidos: {', '.join(valid_complexities)}"
+    #     )
+    prediction = predict(parse(complexity))
+    if prediction is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Complejidad inválida. Valores permitidos: {', '.join(valid_complexities)}"
+            detail=f"No se pudo realizar la predicción para la complejidad {complexity}."
         )
-    return predict(complexity)
+    return prediction
