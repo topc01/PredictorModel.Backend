@@ -20,7 +20,7 @@ def test_predict_returns_dict(complexity):
 @pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatología", "pediatría"])
 def test_metrics_json_structure(complexity):
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    result_path = BASE_DIR / "models" / f"results_{complexity.lower()}.json"
+    result_path = BASE_DIR / "models" / f"results_{complexity}.json"
 
     assert result_path.exists(), f"El archivo {result_path} no existe."
 

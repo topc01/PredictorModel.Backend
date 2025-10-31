@@ -76,10 +76,11 @@ def predict(complexity: str):
     DATA_PATH = BASE_DIR / "data" / "predictions.csv"
 
     data_total = pd.read_csv(DATA_PATH)
-    complexity = complexity.lower()
+    
+    print(data_total.head())
     df = data_total[data_total["complejidad"] == complexity]
     print(df.head())
-
+    complexity = complexity.lower()
     feature_names = joblib.load("models/feature_names.pkl")
 
     try:
