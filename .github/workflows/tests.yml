@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  testing:
+    name: Testing code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installing uv
+        run: |
+          echo "Installing uv"
+          pip install uv
+
+      - name: Installing dependencies
+        run: |
+          echo "Installing dependencies"
+          uv sync
+
+      - name: Running tests
+        run: |
+          echo "Running tests"
+          uv run pytest --cov=app --cov-report=term-missing -v
