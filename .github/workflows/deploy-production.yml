@@ -2,7 +2,7 @@ name: Deploy to Production (Terraform Infrastructure)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["ready"]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-production.yml"
