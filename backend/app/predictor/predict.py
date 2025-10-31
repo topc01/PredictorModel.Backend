@@ -70,7 +70,7 @@ def predict(complexity: str):
 
     ## Cargar datos desde CSV (CAMBIABLE)
     
-    DATA_PATH = BASE_DIR / "data" / "datos_prediccion_semanal.csv"
+    DATA_PATH = BASE_DIR / "data" / "predictions.csv"
 
     data_total = pd.read_csv(DATA_PATH)
     complexity = complexity.lower()
