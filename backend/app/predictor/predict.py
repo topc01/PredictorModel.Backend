@@ -136,4 +136,5 @@ def predict(complexity: str):
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
+    return None
 
