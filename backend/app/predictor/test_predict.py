@@ -2,9 +2,9 @@ import pytest
 import json
 from pathlib import Path
 
-from predictor.predict import predict
+from app.predictor.predict import predict
 
-@pytest.mark.parametrize("complexity", ["Baja", "Media", "Alta", "Neonatologia", "Pediatria"])
+@pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatología", "pediatría"])
 def test_predict_returns_dict(complexity):
     result = predict(complexity)
     assert isinstance(result, dict)
@@ -17,7 +17,7 @@ def test_predict_returns_dict(complexity):
     assert result["prediction"] is not None
 
 
-@pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatologia", "pediatria"])
+@pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatología", "pediatría"])
 def test_metrics_json_structure(complexity):
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
     result_path = BASE_DIR / "models" / f"results_{complexity.lower()}.json"
@@ -31,7 +31,7 @@ def test_metrics_json_structure(complexity):
         assert key in metrics, f"Falta la métrica {key} en {result_path}"
         assert isinstance(metrics[key], (int, float)), f"{key} no es numérico en {result_path}"
 
-@pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatologia", "pediatria"])
+@pytest.mark.parametrize("complexity", ["baja", "media", "alta", "neonatología", "pediatría"])
 def test_prediction_value_range(complexity):
     result = predict(complexity)
     assert 0 <= result["prediction"] <= 300, f"Predicción fuera de rango para {complexity}: {result['prediction']}"
