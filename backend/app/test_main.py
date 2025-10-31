@@ -13,6 +13,8 @@ from .pipeline.limpieza_datos_uc import get_season, limpiar_excel_inicial, prepa
 from .pipeline.preprocesar_datos_semanales import preparar_datos_prediccion_global
 from .utils.storage import StorageManager, check_bucket_access
 from .pipeline.limpieza_datos_uc import cargar_df_por_complejidad
+from .routes.storage import storage_health_check
+from app.types.WeeklyData import WeeklyData
 
 client = TestClient(app)
 
@@ -303,7 +305,6 @@ def test_process_excel_empty_file():
 
 ### Tests Mallku
 
-# --- Caso 1: carga correcta ---
 def test_cargar_df_por_complejidad_filtra_correctamente(tmp_path):
     csv_data = """complejidad,valor1,valor2
 Alta,10,20
@@ -319,3 +320,96 @@ Alta,50,60
     assert "complejidad" not in df_result.columns
     assert set(df_result.columns) == {"valor1", "valor2"}
     assert df_result["valor1"].tolist() == [10, 50]
+
+
+
+@pytest.mark.asyncio
+async def test_storage_health_check_ok(monkeypatch):
+    monkeypatch.setenv("S3_FILES_BUCKET", "test-files-bucket")
+    monkeypatch.setenv("S3_DATA_BUCKET", "test-data-bucket")
+
+    with patch("app.routes.storage.check_bucket_access") as mock_check, \
+         patch("app.routes.storage.get_bucket_info") as mock_info, \
+         patch("app.routes.storage.storage_manager") as mock_storage_manager:
+
+        mock_check.side_effect = [
+            {"accessible": True, "exists": True},   # files
+            {"accessible": True, "exists": True},   # data
+        ]
+        mock_info.return_value = {"region": "us-east-1"}
+        mock_storage_manager.storage_type = "s3"
+        mock_storage_manager.base_path = "s3://test"
+
+        result = await storage_health_check()
+
+        assert result["buckets"]["files"]["accessible"] is True
+        assert result["buckets"]["data"]["exists"] is True
+        assert result["storage_manager"]["storage_type"] == "s3"
+        assert "status" in result
+
+
+@pytest.fixture
+def example_weekly_data():
+    return WeeklyData.example()
+
+@pytest.fixture
+def valid_weekly_data():
+    return WeeklyData.example().model_dump(by_alias=True)
+
+def test_to_df_returns_dataframe(example_weekly_data):
+    df = example_weekly_data.to_df()
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+
+
+
+def test_post_data_ok(valid_weekly_data, tmp_path):
+    csv_path = tmp_path / "weekly.csv"
+
+    with patch("app.routes.weekly.preparar_datos_prediccion_global") as mock_preparar, \
+         patch("app.routes.weekly.WeeklyData.save_csv") as mock_save:
+        mock_preparar.return_value = None
+        mock_save.return_value = None
+
+        response = client.post("/weekly/send", json=valid_weekly_data)
+
+        assert response.status_code == 200
+        assert response.json()["message"] == "Datos recibidos correctamente"
+        mock_preparar.assert_called_once()
+
+
+def test_post_data_validation_error(valid_weekly_data):
+    invalid = valid_weekly_data.copy()
+    invalid.pop("Alta") 
+
+    response = client.post("/weekly/send", json=invalid)
+    assert response.status_code == 422
+    assert "detail" in response.json()
+
+
+def test_post_data_empty_file_error(valid_weekly_data):
+    with patch("app.routes.weekly.WeeklyData.save_csv", side_effect=pd.errors.EmptyDataError()):
+        response = client.post("/weekly/send", json=valid_weekly_data)
+        assert response.status_code == 400
+        assert "vacío" in response.json()["detail"]
+
+
+def test_post_data_parser_error(valid_weekly_data):
+    with patch("app.routes.weekly.WeeklyData.save_csv", side_effect=pd.errors.ParserError()):
+        response = client.post("/weekly/send", json=valid_weekly_data)
+        assert response.status_code == 400
+        assert "formato inválido" in response.json()["detail"]
+
+
+def test_post_data_value_error(valid_weekly_data):
+    with patch("app.routes.weekly.WeeklyData.save_csv", side_effect=ValueError("Datos inválidos")):
+        response = client.post("/weekly/send", json=valid_weekly_data)
+        assert response.status_code == 400
+        assert "Datos inválidos" in response.json()["detail"]
+
+
+def test_post_data_unexpected_error(valid_weekly_data):
+    with patch("app.routes.weekly.WeeklyData.save_csv", side_effect=Exception("Falla interna")):
+        response = client.post("/weekly/send", json=valid_weekly_data)
+        assert response.status_code == 500
+        assert "Error interno" in response.json()["detail"]
