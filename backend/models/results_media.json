@@ -1,1 +1,6 @@
-{"complexity": "media", "MAE": 7.08, "RMSE": 80.81, "R2": 0.173}
+{
+  "complexity": "media",
+  "MAE": 7.08,
+  "RMSE": 80.81,
+  "R2": 0.173
+}
