@@ -100,14 +100,14 @@ def predict(complexity: str):
         print(f"No se pudo cargar resultados desde JSON: {e}")
 
     ## Realizar la predicción
-    if complexity == "Baja":
+    if complexity == "baja":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "Media":
+    elif complexity == "media":
         X_pred = pre_process_X_pred(df, feature_names)
         result = predict_random_forest(model, X_pred)
         prediccion = result["prediccion"]
@@ -115,21 +115,21 @@ def predict(complexity: str):
         upper = result["intervalo_confianza"][1]
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "Alta":
+    elif complexity == "alta":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "Neonatología":
+    elif complexity == "neonatología":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "Pediatría":
+    elif complexity == "pediatría":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
