@@ -83,7 +83,7 @@ def predict(complexity: str):
     feature_names = joblib.load("models/feature_names.pkl")
 
     try:
-        model_path = BASE_DIR / "models" / f"model_{without_tilde(complexity)}.pkl"
+        model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
         np.random.seed(42)
         model = joblib.load(model_path)
         print(f"modelo cargado en pkl")
@@ -91,7 +91,7 @@ def predict(complexity: str):
         print(f"error {e}")
 
     try:
-        result_path = BASE_DIR / "models" / f"results_{without_tilde(complexity)}.json"
+        result_path = BASE_DIR / "models" / f"results_{complexity}.json"
         with open(result_path, "r", encoding="utf-8") as f:
             metrics_models = json.load(f)
         print("Resultados cargados desde JSON:")
