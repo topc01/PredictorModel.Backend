@@ -12,6 +12,7 @@ from .main import app
 from .pipeline.limpieza_datos_uc import get_season, limpiar_excel_inicial, preparar_datos_por_complejidad, procesar_excel_completo
 from .pipeline.preprocesar_datos_semanales import preparar_datos_prediccion_global
 from .utils.storage import StorageManager, check_bucket_access
+from .pipeline.limpieza_datos_uc import cargar_df_por_complejidad
 
 client = TestClient(app)
 
@@ -298,3 +299,23 @@ def test_process_excel_empty_file():
 
     assert response.status_code == 400
     assert "El archivo debe tener al menos 3 hojas" in response.json()["detail"]
+
+
+### Tests Mallku
+
+# --- Caso 1: carga correcta ---
+def test_cargar_df_por_complejidad_filtra_correctamente(tmp_path):
+    csv_data = """complejidad,valor1,valor2
+Alta,10,20
+Media,30,40
+Alta,50,60
+"""
+    ruta = tmp_path / "test.csv"
+    ruta.write_text(csv_data)
+
+    df_result = cargar_df_por_complejidad(ruta, "Alta")
+
+    assert len(df_result) == 2
+    assert "complejidad" not in df_result.columns
+    assert set(df_result.columns) == {"valor1", "valor2"}
+    assert df_result["valor1"].tolist() == [10, 50]
