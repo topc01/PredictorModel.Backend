@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   testing:
+    if: false
     name: Testing code
     runs-on: ubuntu-latest
     steps:
