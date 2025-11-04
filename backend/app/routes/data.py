@@ -409,10 +409,12 @@ async def pipeline_status():
     }
     try:
       for file in response["files"]:
-          if os.path.exists(file["path"]):
-              file["exists"] = True
-          else:
-              file["exists"] = False
+        if file["location"] == "s3" and storage_manager.exists(file["path"]):
+            file["exists"] = True
+        elif file["location"] == "local" and os.path.exists(file["path"]):
+            file["exists"] = True
+        else:
+            file["exists"] = False
       return response
     except Exception as e:
       raise HTTPException(
