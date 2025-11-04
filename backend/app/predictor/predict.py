@@ -69,6 +69,7 @@ def predict(complexity: str):
     Args:
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
+    print(f"complexity: {complexity}")
 
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -83,38 +84,40 @@ def predict(complexity: str):
     # print(data_total.head())
     df = data_total[data_total["complejidad"] == complexity]
     # print(df.head())
-    complexity = complexity.lower()
+    # complexity = complexity.lower()
     # FEATURE_PATH = BASE_DIR / "models" / "feature_names.pkl"
     FEATURE_PATH = "models/feature_names.pkl"
     feature_names = joblib.load(FEATURE_PATH)
 
     try:
         # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
-        model_path = f"models/model_{complexity}.pkl"
+        model_path = f"models/{complexity}.pkl"
         np.random.seed(42)
         model = joblib.load(model_path)
         print(f"modelo cargado en pkl")
     except Exception as e:
+        raise Exception(f"error {e}")
         print(f"error {e}")
 
     try:
-        result_path = BASE_DIR / "models" / f"results_{complexity}.json"
+        result_path = BASE_DIR / "models" / "results" / f"{complexity}.json"
         with open(result_path, "r", encoding="utf-8") as f:
             metrics_models = json.load(f)
         print("Resultados cargados desde JSON:")
         print(metrics_models)
     except Exception as e:
+        raise Exception(f"error {e}")
         print(f"No se pudo cargar resultados desde JSON: {e}")
 
     ## Realizar la predicción
-    if complexity == "baja":
+    if complexity == "Baja":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "media":
+    elif complexity == "Media":
         X_pred = pre_process_X_pred(df, feature_names)
         result = predict_random_forest(model, X_pred)
         prediccion = result["prediccion"]
@@ -122,7 +125,7 @@ def predict(complexity: str):
         upper = result["intervalo_confianza"][1]
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "alta":
+    elif complexity == "Alta":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
@@ -130,18 +133,19 @@ def predict(complexity: str):
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         print(response)
         return response
-    elif complexity == "neonatología":
+    elif complexity == "Neonatología":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
-    elif complexity == "pediatría":
+    elif complexity == "Pediatría":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
+    raise Exception(f"Complejidad {complexity} no encontrada.")
 
