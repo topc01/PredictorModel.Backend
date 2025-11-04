@@ -81,7 +81,8 @@ def predict(complexity: str):
     df = data_total[data_total["complejidad"] == complexity]
     print(df.head())
     complexity = complexity.lower()
-    feature_names = joblib.load("models/feature_names.pkl")
+    feature_path = BASE_DIR / "models" / "feature_names.pkl"
+    feature_names = joblib.load(feature_path)
 
     try:
         model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
