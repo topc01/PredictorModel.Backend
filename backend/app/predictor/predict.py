@@ -69,7 +69,6 @@ def predict(complexity: str):
     Args:
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
-    print(f"complexity: {complexity}")
 
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
