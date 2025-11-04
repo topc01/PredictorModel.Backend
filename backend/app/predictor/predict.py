@@ -73,7 +73,8 @@ def predict(complexity: str):
 
     ## Cargar datos desde CSV (CAMBIABLE)
     
-    DATA_PATH = BASE_DIR / "data" / "predictions.csv"
+    # DATA_PATH = BASE_DIR / "data" / "predictions.csv"
+    DATA_PATH = "data/predictions.csv"
 
     data_total = pd.read_csv(DATA_PATH)
     
@@ -81,11 +82,13 @@ def predict(complexity: str):
     df = data_total[data_total["complejidad"] == complexity]
     # print(df.head())
     complexity = complexity.lower()
-    feature_path = BASE_DIR / "models" / "feature_names.pkl"
-    feature_names = joblib.load(feature_path)
+    # FEATURE_PATH = BASE_DIR / "models" / "feature_names.pkl"
+    FEATURE_PATH = "models/feature_names.pkl"
+    feature_names = joblib.load(FEATURE_PATH)
 
     try:
-        model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
+        # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
+        model_path = f"models/model_{complexity}.pkl"
         np.random.seed(42)
         model = joblib.load(model_path)
         print(f"modelo cargado en pkl")
