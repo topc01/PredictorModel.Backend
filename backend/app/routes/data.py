@@ -404,6 +404,12 @@ async def pipeline_status():
            "path": "models",
            "location": "local",
            "exists": False
+         },
+         {
+           "name": "feature_names",
+           "path": "models/feature_names.pkl",
+           "location": "local",
+           "exists": False
          }
        ]
     }
