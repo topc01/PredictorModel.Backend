@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import prophet
 import joblib
+from ..utils.storage import storage_manager
 
 def without_tilde(string: str) -> str:
     return string.replace('í', 'i')
@@ -76,7 +77,8 @@ def predict(complexity: str):
     # DATA_PATH = BASE_DIR / "data" / "predictions.csv"
     DATA_PATH = "data/predictions.csv"
 
-    data_total = pd.read_csv(DATA_PATH)
+    data_total = storage_manager.load_csv('predictions.csv')
+    # data_total = pd.read_csv(DATA_PATH)
     
     # print(data_total.head())
     df = data_total[data_total["complejidad"] == complexity]
