@@ -3,7 +3,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, st
 from pydantic import BaseModel
 import json
 
-from app.core.redis import get_redis_client
+from app.core.redis import get_redis_client, get_async_redis_client
 from app.tasks.pipeline_tasks import full_pipeline_task
 from celery.result import AsyncResult
 
@@ -98,13 +98,14 @@ async def stream_task_status(websocket: WebSocket, task_id: str):
     """
     await websocket.accept()
     
-    redis_client = get_redis_client()
+    # Use async Redis client to avoid blocking the event loop
+    redis_client = await get_async_redis_client()
     pubsub = redis_client.pubsub()
     channel = f"pipeline:{task_id}"
     
     try:
         # Subscribe to the task's status channel
-        pubsub.subscribe(channel)
+        await pubsub.subscribe(channel)
         
         # Send initial connection message
         await websocket.send_json({
@@ -113,8 +114,8 @@ async def stream_task_status(websocket: WebSocket, task_id: str):
             "message": "Connected to pipeline status stream"
         })
         
-        # Listen for messages
-        for message in pubsub.listen():
+        # Listen for messages using async iteration
+        async for message in pubsub.listen():
             if message["type"] == "message":
                 # Parse and forward the status update
                 try:
@@ -141,8 +142,8 @@ async def stream_task_status(websocket: WebSocket, task_id: str):
     except WebSocketDisconnect:
         pass
     finally:
-        pubsub.unsubscribe(channel)
-        pubsub.close()
+        await pubsub.unsubscribe(channel)
+        await pubsub.aclose()
         await websocket.close()
 
 
