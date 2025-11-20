@@ -6,6 +6,7 @@ import io
 from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
 from datetime import datetime
+from ..utils.storage import storage_manager
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -125,7 +126,8 @@ async def post_data(
     """
     try:
         
-        data.save_csv("data/weekly.csv", by_alias=True)
+        storage_manager.save_csv(data.to_df(by_alias=True), "weekly.csv")
+        # data.save_csv("data/weekly.csv", by_alias=True)
         
         json = data.model_dump()
         preparar_datos_prediccion_global(json)
@@ -238,7 +240,8 @@ async def upload_data(
         
         df = pd.read_excel(io.BytesIO(contents))
         WeeklyData.from_df(df)
-        df.to_csv("data/weekly.csv", index=False)
+        storage_manager.save_csv(df, "weekly.csv")
+        # df.to_csv("data/weekly.csv", index=False)
         
         json = df.groupby("Complejidad").apply(
           lambda x: x.to_dict(orient="records"),
@@ -386,7 +389,8 @@ async def get_last_date():
   Obtiene la última fecha de datos semanales procesados.
   """
   try:
-    df = pd.read_csv("data/weekly.csv")
+    # df = pd.read_csv("data/weekly.csv")
+    df = storage_manager.load_csv("weekly.csv")
     last_date = df["Fecha ingreso"].max()
   except Exception as e:
     raise HTTPException(

@@ -338,7 +338,46 @@ async def process_excel(
     """,
     responses={
         200: {
-            "description": "Archivo procesado exitosamente",
+            "message": "Estado de los archivos del pipeline",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Estado de los archivos del pipeline",
+                        "files": [
+                          {
+                            "name": "dataset",
+                            "path": "dataset.csv",
+                            "location": "s3",
+                            "exists": False
+                          },
+                          {
+                            "name": "predictions",
+                            "path": "predictions.csv",
+                            "location": "s3",
+                            "exists": False
+                          },
+                          {
+                            "name": "weekly",
+                            "path": "weekly.csv",
+                            "location": "s3",
+                            "exists": False
+                          },
+                          {
+                            "name": "models",
+                            "path": "models",
+                            "location": "local",
+                            "exists": False
+                          },
+                          {
+                            "name": "feature_names",
+                            "path": "models/feature_names.pkl",
+                            "location": "local",
+                            "exists": False
+                          }
+                        ]
+                    }
+                }
+            }
         },
         204: {
             "description": "El archivo excel de datos históricos no ha sido procesado",
@@ -349,12 +388,53 @@ async def pipeline_status():
     """
     Obtiene el estado del pipeline y archivos disponibles.
     """
-    if os.path.exists("data/dataset.csv"):
-        return {
-          "message": "Archivo procesado exitosamente"
-        }
-    raise HTTPException(
-      status_code=status.HTTP_204_NO_CONTENT,
-      detail="El archivo excel de datos históricos no ha sido procesado"
-    )
+    response = {
+       "message": "Estado de los archivos del pipeline",
+       "files": [
+         {
+           "name": "dataset",
+           "path": "dataset.csv",
+           "location": "s3",
+           "exists": False
+         },
+         {
+           "name": "predictions",
+           "path": "predictions.csv",
+           "location": "s3",
+           "exists": False
+         },
+         {
+           "name": "weekly",
+           "path": "weekly.csv",
+           "location": "s3",
+           "exists": False
+         },
+         {
+           "name": "models",
+           "path": "models",
+           "location": "local",
+           "exists": False
+         },
+         {
+           "name": "feature_names",
+           "path": "models/feature_names.pkl",
+           "location": "local",
+           "exists": False
+         }
+       ]
+    }
+    try:
+      for file in response["files"]:
+        if file["location"] == "s3" and storage_manager.exists(file["path"]):
+            file["exists"] = True
+        elif file["location"] == "local" and os.path.exists(file["path"]):
+            file["exists"] = True
+        else:
+            file["exists"] = False
+      return response
+    except Exception as e:
+      raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"Error al obtener el estado del pipeline: {str(e)}"
+      )
 
