@@ -108,7 +108,7 @@ async def retrain_endpoint():
 async def get_all_models():
     try:
         from app.retrain.retrain import get_prophet_models
-        complexities = ["Baja", "Media", "Alta", "Neonatología", "Pediatría"]
+        complexities = ["Baja", "Media", "Alta", "Neonatologia", "Pediatria"]
         models = []
         for complexity in complexities:
             complexity_models = get_prophet_models(complexity)

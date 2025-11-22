@@ -148,36 +148,44 @@ def get_prophet_models(complexity: str):
     BASE_MODELS_PATH = "models/prophet"
 
     complexity_path = os.path.join(BASE_MODELS_PATH, complexity)
+    try:
+        complexity = complexity.replace("Neonatologia", "Neonatología").replace("Pediatria", "Pediatría")
+    except:
+        pass
+    try:
+        if not os.path.exists(complexity_path):
+            raise HTTPException(status_code=404, detail="No hay modelos guardados para esta complejidad.")
 
-    if not os.path.exists(complexity_path):
-        raise HTTPException(status_code=404, detail="No hay modelos guardados para esta complejidad.")
+        versions = []
 
-    versions = []
+        for version_name in sorted(os.listdir(complexity_path)):
+            version_path = os.path.join(complexity_path, version_name)
 
-    for version_name in sorted(os.listdir(complexity_path)):
-        version_path = os.path.join(complexity_path, version_name)
+            metadata_path = os.path.join(version_path, "metadata.json")
+            metrics_path = os.path.join(version_path, "metrics.json")
 
-        metadata_path = os.path.join(version_path, "metadata.json")
-        metrics_path = os.path.join(version_path, "metrics.json")
+            metadata = {}
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    metadata = json.load(f)
 
-        metadata = {}
-        if os.path.exists(metadata_path):
-            with open(metadata_path, "r") as f:
-                metadata = json.load(f)
+            metrics = {}
+            if os.path.exists(metrics_path):
+                with open(metrics_path, "r") as f:
+                    metrics = json.load(f)
 
-        metrics = {}
-        if os.path.exists(metrics_path):
-            with open(metrics_path, "r") as f:
-                metrics = json.load(f)
-
-        versions.append({
-            "version": version_name,
-            "complexity": complexity,
-            "trained_at": metadata.get("trained_at"),
-            "n_samples": metadata.get("n_samples"),
-            "params": metadata.get("params", {}),
-            "metrics": metrics
-        })
+            versions.append({
+                "version": version_name,
+                "complexity": complexity,
+                "trained_at": metadata.get("trained_at"),
+                "n_samples": metadata.get("n_samples"),
+                "params": metadata.get("params", {}),
+                "metrics": metrics
+            })
+    except Exception as e:
+        print("Error loading models:", str(e))
+    
+         
 
     return {
         "complexity": complexity,
