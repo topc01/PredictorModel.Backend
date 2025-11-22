@@ -1,0 +1,12 @@
+{
+    "version": "v_2025-11-15_10-22-54",
+    "complexity": "Baja",
+    "trained_at": "2025-11-15 10:22:54",
+    "n_samples": 89,
+    "params": {
+        "yearly_seasonality": true,
+        "weekly_seasonality": false,
+        "daily_seasonality": false,
+        "seasonality_mode": "additive"
+    }
+}

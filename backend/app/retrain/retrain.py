@@ -47,6 +47,10 @@ def load_data(complexity: str):
 
     df = pd.read_csv(DATA_PATH)
 
+    if complexity == "Pediatria":
+        complexity = "Pediatría"
+    elif complexity == "Neonatologia":
+        complexity = "Neonatología"
     df = df[df["complejidad"] == complexity]
     print("Data loaded for retraining.")
     return df
@@ -131,7 +135,7 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining model...")
-    for e in ["Baja", "Media", "Alta"]:
+    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria"]:
     # for e in ["Baja"]:
         retrain_prophet_model(complexity=e)
     pass
