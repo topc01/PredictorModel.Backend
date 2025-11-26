@@ -81,15 +81,16 @@ def process_excel_task(self, excel_bytes: bytes):
 
 
 @celery_app.task(bind=True, base=CallbackTask, max_retries=3)
-def prepare_prediction_task(self, processed_data):
+def process_weekly_task(self, weekly_data: dict):
     """
-    Prepare prediction data asynchronously.
+    Process weekly data asynchronously.
     
     Args:
-        processed_data: Output from process_excel_task
+        weekly_data: Dictionary with weekly data for all complexities
+                     Format: {"Alta": [...], "Baja": [...], ...}
         
     Returns:
-        Prepared prediction data
+        Success message with processing details
     """
     task_id = self.request.id
     
@@ -97,31 +98,44 @@ def prepare_prediction_task(self, processed_data):
         # Publish: Started
         self.publish_status(task_id, {
             "status": "processing",
-            "step": "data_preparation",
-            "progress": 50,
-            "message": "Preparing prediction data..."
+            "step": "weekly_processing",
+            "progress": 0,
+            "message": "Starting weekly data processing..."
         })
         
-        # Prepare prediction data
-        result = preparar_datos_prediccion_global(processed_data)
+        # Publish: Validating
+        self.publish_status(task_id, {
+            "status": "processing",
+            "step": "weekly_processing",
+            "progress": 20,
+            "message": "Validating weekly data..."
+        })
+        
+        # Process weekly data - this updates dataset.csv and creates predictions.csv
+        result = preparar_datos_prediccion_global(weekly_data)
         
         # Publish: Completed
         self.publish_status(task_id, {
             "status": "completed",
-            "step": "data_preparation",
+            "step": "weekly_processing",
             "progress": 100,
-            "message": "Pipeline completed successfully"
+            "message": "Weekly data processed successfully. Predictions.csv has been generated."
         })
         
-        return result
+        return {
+            "success": True,
+            "message": "Weekly data processed successfully",
+            "files_generated": ["predictions.csv", "dataset.csv (updated)"],
+            "rows_processed": len(result)
+        }
         
     except Exception as exc:
         # Publish: Error
         self.publish_status(task_id, {
             "status": "failed",
-            "step": "data_preparation",
+            "step": "weekly_processing",
             "error": str(exc),
-            "message": f"Error preparing data: {str(exc)}"
+            "message": f"Error processing weekly data: {str(exc)}"
         })
         # Retry with exponential backoff
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
