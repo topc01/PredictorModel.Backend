@@ -1,10 +1,10 @@
 """Pipeline processing routes."""
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, File, UploadFile
 from pydantic import BaseModel
 import json
 
 from app.core.redis import get_redis_client, get_async_redis_client
-from app.tasks.pipeline_tasks import full_pipeline_task
+from app.tasks.pipeline_tasks import full_pipeline_task, process_excel_task
 from celery.result import AsyncResult
 
 router = APIRouter(tags=["pipeline"])
@@ -48,6 +48,51 @@ async def start_pipeline(request: PipelineRequest):
         task_id=task.id,
         message="Pipeline started successfully. Use task_id to track progress."
     )
+
+@router.post("/process-excel", response_model=PipelineResponse, status_code=status.HTTP_202_ACCEPTED)
+async def process_excel(file: UploadFile = File(..., description="Excel file with historical hospital data")):
+    """
+    Start asynchronous dataset processing from Excel file.
+    
+    Receives an Excel file with historical hospital data, processes it asynchronously,
+    and generates dataset.csv with cleaned and processed data.
+    
+    Args:
+        file: Excel file (.xlsx or .xls) with historical data
+        
+    Returns:
+        Task ID for tracking status
+    """
+    # Validate file extension
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file name provided"
+        )
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an Excel file (.xlsx or .xls)"
+        )
+    
+    try:
+        # Read file as bytes
+        excel_bytes = await file.read()
+        
+        # Start async task
+        task = process_excel_task.delay(excel_bytes)
+        
+        return PipelineResponse(
+            task_id=task.id,
+            message="Dataset processing started. Use task_id to track progress."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error starting dataset processing: {str(e)}"
+        )
+
 
 
 @router.get("/status/{task_id}", response_model=TaskStatusResponse)
