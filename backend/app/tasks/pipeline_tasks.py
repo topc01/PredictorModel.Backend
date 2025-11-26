@@ -22,11 +22,13 @@ def process_excel_task(self, file_path: str):
     Process Excel file asynchronously.
     
     Args:
-        file_path: Path to the Excel file to process
+        excel_bytes: Excel file content as bytes
         
     Returns:
-        Processed data result
+        Success message with processing details
     """
+    import io
+    
     task_id = self.request.id
     
     try:
@@ -38,18 +40,33 @@ def process_excel_task(self, file_path: str):
             "message": "Starting Excel processing..."
         })
         
-        # Process the Excel file
-        result = procesar_excel_completo(file_path)
+        # Convert bytes to BytesIO for processing
+        excel_file = io.BytesIO(excel_bytes)
         
-        # Publish: Completed
+        # Publish: Processing
         self.publish_status(task_id, {
             "status": "processing",
             "step": "excel_processing",
-            "progress": 50,
-            "message": "Excel processing completed"
+            "progress": 20,
+            "message": "Reading and validating Excel file..."
         })
         
-        return result
+        # Process the Excel file
+        procesar_excel_completo(excel_file)
+        
+        # Publish: Completed
+        self.publish_status(task_id, {
+            "status": "completed",
+            "step": "excel_processing",
+            "progress": 100,
+            "message": "Excel processing completed successfully. Dataset.csv has been generated."
+        })
+        
+        return {
+            "success": True,
+            "message": "Dataset processed successfully",
+            "file_generated": "dataset.csv"
+        }
         
     except Exception as exc:
         # Publish: Error
