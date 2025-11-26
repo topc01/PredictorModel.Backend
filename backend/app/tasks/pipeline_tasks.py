@@ -17,7 +17,7 @@ class CallbackTask(Task):
 
 
 @celery_app.task(bind=True, base=CallbackTask, max_retries=3)
-def process_excel_task(self, file_path: str):
+def process_excel_task(self, excel_bytes: bytes):
     """
     Process Excel file asynchronously.
     
