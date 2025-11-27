@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import json
 
 from app.core.redis import get_redis_client, get_async_redis_client
-from app.tasks.pipeline_tasks import full_pipeline_task, process_excel_task, process_weekly_task
+from app.tasks import full_pipeline_task, process_excel_task, process_weekly_task
 from celery.result import AsyncResult
 
 router = APIRouter(tags=["pipeline"])
