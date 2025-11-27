@@ -1,9 +1,13 @@
 """Pipeline processing tasks using Celery."""
 import json
+import logging
+import traceback
 from celery import Task
 from app.core.celery_app import celery_app
 from app.core.redis import get_redis_client
 from app.pipeline import procesar_excel_completo, preparar_datos_prediccion_global
+
+logger = logging.getLogger(__name__)
 
 
 class CallbackTask(Task):
@@ -30,8 +34,15 @@ def process_excel_task(self, excel_bytes: bytes):
     import io
     
     task_id = self.request.id
+    logger.info(f"Starting Excel processing task {task_id}")
     
     try:
+        # Validate input
+        if not excel_bytes or len(excel_bytes) == 0:
+            raise ValueError("Excel file is empty or invalid")
+        
+        logger.info(f"Task {task_id}: Received Excel file of size {len(excel_bytes)} bytes")
+        
         # Publish: Started
         self.publish_status(task_id, {
             "status": "processing",
@@ -52,7 +63,9 @@ def process_excel_task(self, excel_bytes: bytes):
         })
         
         # Process the Excel file
+        logger.info(f"Task {task_id}: Processing Excel file...")
         procesar_excel_completo(excel_file)
+        logger.info(f"Task {task_id}: Excel processing completed successfully")
         
         # Publish: Completed
         self.publish_status(task_id, {
@@ -69,15 +82,27 @@ def process_excel_task(self, excel_bytes: bytes):
         }
         
     except Exception as exc:
+        error_msg = str(exc)
+        error_traceback = traceback.format_exc()
+        logger.error(f"Task {task_id} failed: {error_msg}\n{error_traceback}")
+        
         # Publish: Error
         self.publish_status(task_id, {
             "status": "failed",
             "step": "excel_processing",
-            "error": str(exc),
-            "message": f"Error processing Excel: {str(exc)}"
+            "error": error_msg,
+            "error_type": type(exc).__name__,
+            "traceback": error_traceback,
+            "message": f"Error processing Excel: {error_msg}"
         })
-        # Retry with exponential backoff
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        
+        # Check if we should retry
+        if self.request.retries < self.max_retries:
+            logger.info(f"Task {task_id}: Retrying (attempt {self.request.retries + 1}/{self.max_retries})")
+            raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        else:
+            logger.error(f"Task {task_id}: Max retries reached, failing permanently")
+            raise
 
 
 @celery_app.task(bind=True, base=CallbackTask, max_retries=3)
@@ -93,8 +118,15 @@ def process_weekly_task(self, weekly_data: dict):
         Success message with processing details
     """
     task_id = self.request.id
+    logger.info(f"Starting weekly data processing task {task_id}")
     
     try:
+        # Validate input
+        if not weekly_data or not isinstance(weekly_data, dict):
+            raise ValueError("Weekly data must be a non-empty dictionary")
+        
+        logger.info(f"Task {task_id}: Received weekly data with {len(weekly_data)} complexity levels")
+        
         # Publish: Started
         self.publish_status(task_id, {
             "status": "processing",
@@ -112,7 +144,9 @@ def process_weekly_task(self, weekly_data: dict):
         })
         
         # Process weekly data - this updates dataset.csv and creates predictions.csv
+        logger.info(f"Task {task_id}: Processing weekly data...")
         result = preparar_datos_prediccion_global(weekly_data)
+        logger.info(f"Task {task_id}: Weekly data processing completed successfully")
         
         # Publish: Completed
         self.publish_status(task_id, {
@@ -130,15 +164,27 @@ def process_weekly_task(self, weekly_data: dict):
         }
         
     except Exception as exc:
+        error_msg = str(exc)
+        error_traceback = traceback.format_exc()
+        logger.error(f"Task {task_id} failed: {error_msg}\n{error_traceback}")
+        
         # Publish: Error
         self.publish_status(task_id, {
             "status": "failed",
             "step": "weekly_processing",
-            "error": str(exc),
-            "message": f"Error processing weekly data: {str(exc)}"
+            "error": error_msg,
+            "error_type": type(exc).__name__,
+            "traceback": error_traceback,
+            "message": f"Error processing weekly data: {error_msg}"
         })
-        # Retry with exponential backoff
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        
+        # Check if we should retry
+        if self.request.retries < self.max_retries:
+            logger.info(f"Task {task_id}: Retrying (attempt {self.request.retries + 1}/{self.max_retries})")
+            raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        else:
+            logger.error(f"Task {task_id}: Max retries reached, failing permanently")
+            raise
 
 
 @celery_app.task(bind=True, base=CallbackTask)
@@ -153,6 +199,7 @@ def full_pipeline_task(self, file_path: str):
         Final prediction data
     """
     task_id = self.request.id
+    logger.info(f"Starting full pipeline task {task_id} with file: {file_path}")
     
     try:
         # Publish: Started
@@ -170,7 +217,9 @@ def full_pipeline_task(self, file_path: str):
             "progress": 10,
             "message": "Processing Excel file..."
         })
+        logger.info(f"Task {task_id}: Processing Excel file...")
         result1 = procesar_excel_completo(file_path)
+        logger.info(f"Task {task_id}: Excel processing completed")
         
         # Step 2: Prepare prediction data
         self.publish_status(task_id, {
@@ -179,7 +228,9 @@ def full_pipeline_task(self, file_path: str):
             "progress": 60,
             "message": "Preparing prediction data..."
         })
+        logger.info(f"Task {task_id}: Preparing prediction data...")
         result2 = preparar_datos_prediccion_global(result1)
+        logger.info(f"Task {task_id}: Prediction data preparation completed")
         
         # Complete
         self.publish_status(task_id, {
@@ -193,12 +244,18 @@ def full_pipeline_task(self, file_path: str):
         return result2
         
     except Exception as exc:
+        error_msg = str(exc)
+        error_traceback = traceback.format_exc()
+        logger.error(f"Task {task_id} failed: {error_msg}\n{error_traceback}")
+        
         # Publish: Error
         self.publish_status(task_id, {
             "status": "failed",
             "step": "error",
             "progress": 0,
-            "error": str(exc),
-            "message": f"Pipeline failed: {str(exc)}"
+            "error": error_msg,
+            "error_type": type(exc).__name__,
+            "traceback": error_traceback,
+            "message": f"Pipeline failed: {error_msg}"
         })
         raise
