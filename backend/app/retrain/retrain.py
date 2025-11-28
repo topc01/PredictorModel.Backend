@@ -8,6 +8,8 @@ from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 from fastapi import HTTPException
+from app.utils.version import version_manager
+from app.utils.storage import storage_manager
 
 def save_prophet_model(model, metrics, complexity, df_prophet):
     version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
@@ -32,6 +34,7 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         }
     }
 
+    version_manager.save_model(model, metadata)
     with open(f"{base_path}/metadata.json", "w") as f:
         json.dump(metadata, f, indent=4)
 
@@ -42,10 +45,10 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
     }
 
 def load_data(complexity: str):
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    DATA_PATH = BASE_DIR / "data" / "dataset_prueba.csv" ## cambiar por el real
-
-    df = pd.read_csv(DATA_PATH)
+    # BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    # DATA_PATH = BASE_DIR / "data" / "dataset_prueba.csv" ## cambiar por el real
+    df = storage_manager.load_csv("dataset.csv")
+    # df = pd.read_csv(DATA_PATH)
 
     if complexity == "Pediatria":
         complexity = "Pediatría"
