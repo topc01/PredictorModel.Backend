@@ -90,22 +90,6 @@ class StorageManager:
         except self.s3_client.exceptions.NoSuchKey:
             raise FileNotFoundError(f"S3 object not found: s3://{self.s3_bucket}/{s3_key}")
 
-    def save_model(self, model, metadata) -> None:
-        """
-        Save a model to the storage.
-        
-        Args:
-            model: Model to save
-            metadata: Metadata to save with the model
-        """
-        version = metadata.get("version")
-        complexity = metadata.get("complexity")
-        model_path = f"models/{complexity}/{version}/model.pkl"
-        metadata_path = f"models/{complexity}/{version}/metadata.json"
-
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=model_path, Body=model)
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=metadata_path, Body=json.dumps(metadata))
-        
     
     def exists(self, filename: str) -> bool:
         """
