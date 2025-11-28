@@ -4,7 +4,7 @@ Pipeline routes for data cleaning and processing.
 These endpoints handle the initial Excel processing and data cleaning pipeline.
 """
 
-from fastapi import APIRouter, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Optional
@@ -15,6 +15,7 @@ from datetime import datetime
 import os
 from ..pipeline import procesar_excel_completo
 from ..utils.storage import storage_manager
+from ..auth import require_admin, require_role
 
 
 router = APIRouter(
@@ -129,7 +130,8 @@ async def process_excel(
     file: UploadFile = File(
         ..., 
         description="Archivo Excel (.xlsx o .xls) con datos hospitalarios crudos"
-    )
+    ),
+    user: dict = Depends(require_admin)
 ):
     """
     Procesa un archivo Excel inicial con datos hospitalarios.
@@ -384,7 +386,9 @@ async def process_excel(
         }
     }
 )
-async def pipeline_status():
+async def pipeline_status(
+    user: dict = Depends(require_role(["visualizador", "administrador"]))
+):
     """
     Obtiene el estado del pipeline y archivos disponibles.
     """

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 import pandas as pd
@@ -7,6 +7,7 @@ from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
 from datetime import datetime
 from ..utils.storage import storage_manager
+from ..auth import require_admin, require_role
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -116,7 +117,8 @@ async def post_data(
     data: WeeklyData = Body(
         ...,
         description="Datos semanales de todas las complejidades hospitalarias"
-    )
+    ),
+    user: dict = Depends(require_admin)
 ):
     """
     Procesa y valida datos semanales de todas las complejidades hospitalarias.
@@ -217,6 +219,7 @@ async def post_data(
 )
 async def upload_data(
     file: UploadFile = File(..., description="Archivo Excel (.xlsx o .xls) con los datos semanales"),
+    user: dict = Depends(require_admin)
 ):
     """
     Procesa un archivo Excel con datos semanales de todas las complejidades.
@@ -307,7 +310,9 @@ async def upload_data(
         }
     }
 )
-async def download_template():
+async def download_template(
+    user: dict = Depends(require_role(["visualizador", "administrador"]))
+):
     """
     Genera y descarga una plantilla de Excel con el formato correcto.
     """
@@ -384,7 +389,9 @@ async def download_template():
     }
   }
 )
-async def get_last_date():
+async def get_last_date(
+    user: dict = Depends(require_role(["visualizador", "administrador"]))
+):
   """
   Obtiene la última fecha de datos semanales procesados.
   """

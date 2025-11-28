@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
 import os
 from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
+from app.auth import require_role
 
 router = APIRouter(
     tags=["Storage"],
@@ -75,7 +76,9 @@ router = APIRouter(
         }
     }
 )
-async def storage_health_check():
+async def storage_health_check(
+    user: dict = Depends(require_role(["visualizador", "administrador"]))
+):
     """
     Verifica la conectividad y acceso a los buckets de S3.
     

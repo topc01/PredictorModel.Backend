@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from app.predictor import predict
+from app.auth import get_current_user, require_role
 
 router = APIRouter(
     tags=["Predict"],
@@ -43,7 +44,10 @@ router = APIRouter(
     }
   }
 )
-async def predict_complexity(complexity: str):
+async def predict_complexity(
+    complexity: str,
+    user: dict = Depends(require_role(["visualizador", "administrador"]))
+):
     """
     Realiza una predicción para una complejidad específica.
     

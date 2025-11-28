@@ -37,6 +37,7 @@ dependencies = [
   "pytest-cov>=7.0.0",
   "httpx>=0.28.1",
   "pytest-asyncio>=1.2.0",
+  "python-jose[cryptography]>=3.3.0",
 ]
 
 [tool.uv]

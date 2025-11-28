@@ -55,6 +55,17 @@ S3_DATA_BUCKET=predictor-model-prod-data
 # Or use different buckets for local testing if you prefer
 # S3_FILES_BUCKET=your-local-test-files-bucket
 # S3_DATA_BUCKET=your-local-test-data-bucket
+
+# Auth0 Configuration
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_API_AUDIENCE=https://your-api-identifier
+AUTH0_ISSUER=https://your-tenant.auth0.com/
+AUTH0_ALGORITHMS=RS256
+
+# Auth0 Management API (for user management)
+AUTH0_MANAGEMENT_API_DOMAIN=your-tenant.auth0.com
+AUTH0_MANAGEMENT_API_CLIENT_ID=your-m2m-client-id
+AUTH0_MANAGEMENT_API_CLIENT_SECRET=your-m2m-client-secret
 ```
 
 ---
