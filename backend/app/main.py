@@ -2,7 +2,12 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router
 from dotenv import load_dotenv
+import logging
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 # Load environment variables from .env file (for local development)
 load_dotenv()
 
