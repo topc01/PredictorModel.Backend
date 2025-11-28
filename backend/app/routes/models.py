@@ -56,3 +56,52 @@ router = APIRouter(
 )
 async def get_all_models():
     return version_manager.get_versions()
+
+@router.get(
+    "/versions/{complexity}",
+    status_code=status.HTTP_200_OK,
+    summary="Get models versions by complexity",
+    description="""
+    Endpoint to retrieve models versions by complexity.
+    """,
+    responses={
+        200: {
+            "description": "List of models versions by complexity",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "versions": [
+                            {
+                                "model_name": "prophet_v1_2024-01-01_12-00",
+                                "metrics": {
+                                    "MAE": 123.45,
+                                    "RMSE": 234.56,
+                                    "R2": 0.89
+                                },
+                                "parameters": {
+                                    "param1": "value1",
+                                    "param2": "value2"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Error retrieving models",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "error",
+                        "message": "Failed to retrieve models."
+                    }    
+                }
+            }
+        }
+    },
+)
+async def get_models_by_complexity(complexity: str):
+    return version_manager.get_complexity_versions(complexity)
+
+
