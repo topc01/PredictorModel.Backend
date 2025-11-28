@@ -12,10 +12,12 @@ import pandas as pd
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables from .env file (for local development)
 load_dotenv()
 
+logger = logging.getLogger(__name__)
 
 class StorageManager:
     """
@@ -24,14 +26,17 @@ class StorageManager:
     Uses S3.
     """
     
-    def __init__(self, s3_bucket: Optional[str] = None):
+    def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         """
         Initialize storage manager.
         
         Args:
+            env: Environment (local or s3)
             s3_bucket: S3 bucket name (required if storage_type='s3')
         """
+        self.env = env
         self.s3_bucket = s3_bucket
+        logger.info(f"StorageManager initialized with env={env}, s3_bucket={s3_bucket}")
         
         if not s3_bucket:
             raise ValueError("s3_bucket is required when storage_type='s3'")
@@ -61,6 +66,11 @@ class StorageManager:
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
         s3_key = filename
+        if self.env == "local":
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'w') as f:
+                f.write(csv_buffer.getvalue())
+            return filename
             
         self.s3_client.put_object(
             Bucket=self.s3_bucket,
@@ -85,6 +95,9 @@ class StorageManager:
         
         s3_key = filename
         try:
+            if self.env == "local":
+                with open(filename, 'r') as f:
+                    return pd.read_csv(f)
             obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=s3_key)
             return pd.read_csv(io.BytesIO(obj['Body'].read()))
         except self.s3_client.exceptions.NoSuchKey:
@@ -103,6 +116,8 @@ class StorageManager:
         """
         s3_key = filename
         try:
+            if self.env == "local":
+                return os.path.exists(filename)
             self.s3_client.head_object(Bucket=self.s3_bucket, Key=s3_key)
             return True
         except:
@@ -129,8 +144,10 @@ class StorageManager:
 # Global storage manager instance
 # Can be configured via environment variables
 _s3_bucket = os.getenv("S3_DATA_BUCKET", None)
+_env = os.getenv("ENV", "local")
 
 storage_manager = StorageManager(
+    env=_env,
     s3_bucket=_s3_bucket
 )
 

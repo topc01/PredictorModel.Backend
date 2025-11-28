@@ -13,9 +13,9 @@ from app.utils.storage import StorageManager
 load_dotenv()
 
 class VersionManager(StorageManager):
-    def __init__(self, s3_bucket: Optional[str] = None):
+    def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         self.filename = "version_manager.json"
-        super().__init__(s3_bucket)
+        super().__init__(env, s3_bucket)
 
     def save_model(self, model, metadata) -> None:
         """
@@ -29,6 +29,15 @@ class VersionManager(StorageManager):
         complexity = metadata.get("complexity")
         model_path = f"models/{complexity}/{version}/model.pkl"
         metadata_path = f"models/{complexity}/{version}/metadata.json"
+
+        if self.env == "local":
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            os.makedirs(os.path.dirname(metadata_path), exist_ok=True)
+            with open(model_path, 'wb') as f:
+                f.write(model)
+            with open(metadata_path, 'wb') as f:
+                f.write(json.dumps(metadata))
+            return
 
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=model_path, Body=model)
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=metadata_path, Body=json.dumps(metadata))
@@ -64,9 +73,18 @@ class VersionManager(StorageManager):
             }
         }
 
+        if self.env == "local":
+            os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+            with open(self.filename, 'wb') as f:
+                f.write(json.dumps(data))
+            return
+
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(data))
 
     def get_version_manager(self):
+        if self.env == "local":
+            with open(self.filename, 'rb') as f:
+                return json.load(f)
         obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.filename)
         return json.loads(obj['Body'].read())
 
@@ -81,6 +99,10 @@ class VersionManager(StorageManager):
             "activated_at": datetime.now().isoformat(),
             "activated_by": user
         }
+        if self.env == "local":
+            with open(self.filename, 'wb') as f:
+                f.write(json.dumps(versions))
+            return
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
         return versions[complexity]
 
@@ -103,12 +125,27 @@ class VersionManager(StorageManager):
                     "activated_by": user
                 }
         
+        if self.env == "local":
+            with open(self.filename, 'wb') as f:
+                f.write(json.dumps(versions))
+            return
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
         return versions
         
     def get_complexity_versions(self, complexity: str):
         s3_key = f"models/{complexity}"
         try:
+            if self.env == "local":
+                response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
+                if 'Contents' not in response:
+                    return []
+                
+                versions = []
+                for obj in response['Contents']:
+                    if obj['Key'].endswith("metadata.json"):
+                        metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=obj['Key'])
+                        versions.append(json.loads(metadata['Body'].read()))
+                return versions
             response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
             if 'Contents' not in response:
                 return []
@@ -138,6 +175,9 @@ class VersionManager(StorageManager):
         """
         metadata_path = f"models/{complexity}/{version}/metadata.json"
         try:
+            if self.env == "local":
+                with open(metadata_path, 'rb') as f:
+                    return json.load(f)
             metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metadata_path)
             return json.loads(metadata['Body'].read())
         except self.s3_client.exceptions.NoSuchKey:
@@ -198,7 +238,9 @@ class VersionManager(StorageManager):
 
 
 _s3_bucket = os.getenv("S3_DATA_BUCKET", None)
+_env = os.getenv("ENV", "local")
 
 version_manager = VersionManager(
+    env=_env,
     s3_bucket=_s3_bucket
 )
