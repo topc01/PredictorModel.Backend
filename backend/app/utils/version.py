@@ -26,28 +26,102 @@ class VersionManager(StorageManager):
 
     def save_model(self, model, metadata) -> None:
         """
-        Save a model to the storage.
+        Save a model to storage using joblib.
+        
+        Best practices:
+        - Local: Direct file write with joblib.dump
+        - S3: Serialize to BytesIO buffer, then upload
         
         Args:
-            model: Model to save
-            metadata: Metadata to save with the model
+            model: Model object (Prophet, sklearn, etc.) to save
+            metadata: Metadata dictionary to save with the model
         """
+        import joblib
+        from io import BytesIO
+        
         version = metadata.get("version")
         complexity = metadata.get("complexity")
         model_path = f"models/{complexity}/{version}/model.pkl"
         metadata_path = f"models/{complexity}/{version}/metadata.json"
 
         if self.env == "local":
+            # Local mode: Direct file write
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             os.makedirs(os.path.dirname(metadata_path), exist_ok=True)
-            with open(model_path, 'wb') as f:
-                f.write(model)
-            with open(metadata_path, 'wb') as f:
-                f.write(json.dumps(metadata))
+            
+            # Save model using joblib with compression
+            joblib.dump(model, model_path, compress=3)
+            
+            # Save metadata as JSON
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            logger.info(f"Model saved locally: {model_path}")
             return
 
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=model_path, Body=model)
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=metadata_path, Body=json.dumps(metadata))
+        # S3 mode: Serialize to BytesIO buffer first
+        with BytesIO() as model_buffer:
+            joblib.dump(model, model_buffer, compress=3)
+            model_buffer.seek(0)
+            self.s3_client.upload_fileobj(
+                model_buffer,
+                Bucket=self.s3_bucket,
+                Key=model_path
+            )
+        
+        # Save metadata to S3
+        self.s3_client.put_object(
+            Bucket=self.s3_bucket,
+            Key=metadata_path,
+            Body=json.dumps(metadata, indent=2)
+        )
+        logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
+    
+    def load_model(self, complexity: str, version: str):
+        """
+        Load a model from storage using joblib.
+        
+        Best practices:
+        - Local: Direct file read with joblib.load
+        - S3: Download to BytesIO buffer, then load
+        
+        Args:
+            complexity: Model complexity
+            version: Version identifier
+            
+        Returns:
+            Loaded model object
+        """
+        import joblib
+        from io import BytesIO
+        
+        model_path = f"models/{complexity}/{version}/model.pkl"
+        
+        if self.env == "local":
+            # Local mode: Direct file read
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Model not found: {model_path}")
+            
+            model = joblib.load(model_path)
+            logger.info(f"Model loaded from local: {model_path}")
+            return model
+        
+        # S3 mode: Download to BytesIO buffer
+        try:
+            with BytesIO() as model_buffer:
+                self.s3_client.download_fileobj(
+                    Bucket=self.s3_bucket,
+                    Key=model_path,
+                    Fileobj=model_buffer
+                )
+                model_buffer.seek(0)
+                model = joblib.load(model_buffer)
+            
+            logger.info(f"Model loaded from S3: s3://{self.s3_bucket}/{model_path}")
+            return model
+        except self.s3_client.exceptions.NoSuchKey:
+            raise FileNotFoundError(f"Model not found in S3: s3://{self.s3_bucket}/{model_path}")
+
     
     def create_version_manager(self):
         """Create version manager configuration file if it doesn't exist."""
