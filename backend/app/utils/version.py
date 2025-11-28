@@ -184,6 +184,31 @@ class VersionManager(StorageManager):
         versions = self.get_version_manager()
         return versions.get(complexity, {})
 
+    def get_active_model(self, complexity: str):
+        """
+        Get the currently active model for a complexity.
+        
+        Combines get_active_version_data() and load_model() for convenience.
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Loaded active model object
+            
+        Raises:
+            ValueError: If no active version is set for the complexity
+            FileNotFoundError: If the active model file doesn't exist
+        """
+        active_data = self.get_active_version_data(complexity)
+        version = active_data.get("version")
+        
+        if not version:
+            raise ValueError(f"No active version set for complexity: {complexity}")
+        
+        logger.info(f"Loading active model for {complexity}: {version}")
+        return self.load_model(complexity, version)
+
     def set_active_version(self, complexity: str, version: str, user: str = "system"):
         versions = self.get_version_manager()
         versions[complexity] = {
