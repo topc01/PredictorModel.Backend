@@ -12,6 +12,7 @@ load_dotenv()
 
 class VersionManager(StorageManager):
     def __init__(self, s3_bucket: Optional[str] = None):
+        self.filename = "version_manager.json"
         super().__init__(s3_bucket)
 
     def save_model(self, model, metadata) -> None:
