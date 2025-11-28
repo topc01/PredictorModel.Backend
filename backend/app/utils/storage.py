@@ -1,7 +1,7 @@
 """
 Storage management for CSV files.
 
-Supports both local filesystem (for development) and S3 (for production/Lambda).
+Supports S3.
 """
 
 import os
@@ -21,8 +21,7 @@ class StorageManager:
     """
     Manages storage of CSV files for historical data.
     
-    In development: Uses local filesystem
-    In production: Uses S3 (to be implemented)
+    Uses S3.
     """
     
     def __init__(self, s3_bucket: Optional[str] = None):
