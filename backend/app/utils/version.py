@@ -188,7 +188,7 @@ class VersionManager(StorageManager):
         """
         Get the currently active model for a complexity.
         
-        Combines get_active_version_data() and load_model() for convenience.
+        If no active version is set, defaults to the latest version.
         
         Args:
             complexity: Model complexity
@@ -197,16 +197,32 @@ class VersionManager(StorageManager):
             Loaded active model object
             
         Raises:
-            ValueError: If no active version is set for the complexity
-            FileNotFoundError: If the active model file doesn't exist
+            ValueError: If no versions exist for the complexity
+            FileNotFoundError: If the model file doesn't exist
         """
         active_data = self.get_active_version_data(complexity)
         version = active_data.get("version")
         
+        # If no active version, get the latest one
         if not version:
-            raise ValueError(f"No active version set for complexity: {complexity}")
+            logger.info(f"No active version set for {complexity}, using latest version")
+            versions = self.get_complexity_versions(complexity)
+            
+            if not versions:
+                raise ValueError(f"No versions available for complexity: {complexity}")
+            
+            # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS or similar)
+            # Get the last one (most recent)
+            sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
+            version = sorted_versions[0].get("version")
+            
+            if not version:
+                raise ValueError(f"Could not determine latest version for complexity: {complexity}")
+            
+            logger.info(f"Using latest version for {complexity}: {version}")
+        else:
+            logger.info(f"Loading active model for {complexity}: {version}")
         
-        logger.info(f"Loading active model for {complexity}: {version}")
         return self.load_model(complexity, version)
 
     def set_active_version(self, complexity: str, version: str, user: str = "system"):
