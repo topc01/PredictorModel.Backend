@@ -36,12 +36,12 @@ class StorageManager:
         """
         self.env = env
         self.s3_bucket = s3_bucket
+        self._s3_client = None  # Lazy initialization
         logger.info(f"StorageManager initialized with env={env}, s3_bucket={s3_bucket}")
         
-        if not s3_bucket:
-            raise ValueError("s3_bucket is required when storage_type='s3'")
-            # S3 client will be initialized when needed
-            self._s3_client = None
+        # Only validate s3_bucket if not in local mode
+        if env != "local" and not s3_bucket:
+            raise ValueError("s3_bucket is required when env is not 'local'")
     
     @property
     def s3_client(self):
