@@ -17,6 +17,17 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class VersionManager(StorageManager):
+
+    complexities = [
+        "Baja",
+        "Media",
+        "Alta",
+        "Neonatología",
+        "Pediatría",
+        "Inte. Pediátrico",
+        "Maternidad"
+    ]
+
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files
         self.base_dir = "models"
@@ -131,34 +142,8 @@ class VersionManager(StorageManager):
             
         logger.info(f"Creating version manager file: {self.filename}")
         
-        data = {
-            "Alta": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Media": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Baja": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Neonatología": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Pediatría": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            }
-        }
-
+        data = { complexity: { "version": "", "activated_at": "", "activated_by": "" } for complexity in self.complexities }
+        self.data = data
         if self.env == "local":
             # Create directory only if filename has a directory component
             dir_path = os.path.dirname(self.filename)
@@ -352,13 +337,14 @@ class VersionManager(StorageManager):
         return comparison
 
     def get_versions(self):
-        complexities = {
-            "Baja": [], "Media": [], "Alta": [], "Neonatología": [], "Pediatría": []
-        }
+        complexities = { complexity: [] for complexity in self.complexities }
         for complexity in complexities.keys():
             complexity_versions = self.get_complexity_versions(complexity)
             complexities[complexity] = complexity_versions
         return complexities
+
+    def get_active_versions(self):
+        return { complexity: self.get_active_version(complexity) for complexity in self.complexities }
 
     def get_stats(self) -> Dict:
         """
