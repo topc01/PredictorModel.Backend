@@ -37,7 +37,8 @@ class StorageManager:
         self.env = env
         self.s3_bucket = s3_bucket
         self._s3_client = None  # Lazy initialization
-        logger.info(f"StorageManager initialized with env={env}, s3_bucket={s3_bucket}")
+        self.base_dir = "data"  # Base directory for local storage
+        logger.info(f"StorageManager initialized with env={env}, s3_bucket={s3_bucket}, base_dir={self.base_dir}")
         
         # Only validate s3_bucket if not in local mode
         if env != "local" and not s3_bucket:
@@ -67,10 +68,12 @@ class StorageManager:
         df.to_csv(csv_buffer, index=False)
         s3_key = filename
         if self.env == "local":
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            with open(filename, 'w') as f:
+            # Always use data/ directory for local storage
+            local_path = os.path.join(self.base_dir, filename)
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, 'w') as f:
                 f.write(csv_buffer.getvalue())
-            return filename
+            return local_path
             
         self.s3_client.put_object(
             Bucket=self.s3_bucket,
@@ -96,12 +99,16 @@ class StorageManager:
         s3_key = filename
         try:
             if self.env == "local":
-                with open(filename, 'r') as f:
+                # Always use data/ directory for local storage
+                local_path = os.path.join(self.base_dir, filename)
+                with open(local_path, 'r') as f:
                     return pd.read_csv(f)
             obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=s3_key)
             return pd.read_csv(io.BytesIO(obj['Body'].read()))
         except self.s3_client.exceptions.NoSuchKey:
             raise FileNotFoundError(f"S3 object not found: s3://{self.s3_bucket}/{s3_key}")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Local file not found: {os.path.join(self.base_dir, filename)}")
 
     
     def exists(self, filename: str) -> bool:
@@ -117,7 +124,9 @@ class StorageManager:
         s3_key = filename
         try:
             if self.env == "local":
-                return os.path.exists(filename)
+                # Always use data/ directory for local storage
+                local_path = os.path.join(self.base_dir, filename)
+                return os.path.exists(local_path)
             self.s3_client.head_object(Bucket=self.s3_bucket, Key=s3_key)
             return True
         except:
