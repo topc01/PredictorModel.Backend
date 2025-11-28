@@ -31,7 +31,8 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
             "weekly_seasonality": False,
             "daily_seasonality": False,
             "seasonality_mode": "additive"
-        }
+        },
+        "metrics": metrics
     }
 
     version_manager.save_model(model, metadata)
