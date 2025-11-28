@@ -25,15 +25,13 @@ class StorageManager:
     In production: Uses S3 (to be implemented)
     """
     
-    def __init__(self, base_path: str = "./data", s3_bucket: Optional[str] = None):
+    def __init__(self, s3_bucket: Optional[str] = None):
         """
         Initialize storage manager.
         
         Args:
-            base_path: Base directory for local storage or S3 prefix
             s3_bucket: S3 bucket name (required if storage_type='s3')
         """
-        self.base_path = base_path
         self.s3_bucket = s3_bucket
         
         if not s3_bucket:
@@ -63,7 +61,7 @@ class StorageManager:
         
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
-        s3_key = f"{self.base_path}/{filename}"
+        s3_key = filename
             
         self.s3_client.put_object(
             Bucket=self.s3_bucket,
@@ -86,7 +84,7 @@ class StorageManager:
             FileNotFoundError: If file doesn't exist
         """
         
-        s3_key = f"{self.base_path}/{filename}"
+        s3_key = filename
         try:
             obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=s3_key)
             return pd.read_csv(io.BytesIO(obj['Body'].read()))
@@ -120,7 +118,7 @@ class StorageManager:
         Returns:
             True if file exists, False otherwise
         """
-        s3_key = f"{self.base_path}/{filename}"
+        s3_key = filename
         try:
             self.s3_client.head_object(Bucket=self.s3_bucket, Key=s3_key)
             return True
@@ -147,11 +145,9 @@ class StorageManager:
 
 # Global storage manager instance
 # Can be configured via environment variables
-_storage_base_path = os.getenv("STORAGE_BASE_PATH", "./data")
 _s3_bucket = os.getenv("S3_DATA_BUCKET", None)
 
 storage_manager = StorageManager(
-    base_path=_storage_base_path,
     s3_bucket=_s3_bucket
 )
 
