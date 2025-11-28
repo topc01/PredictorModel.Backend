@@ -7,15 +7,19 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional, List, Dict
+import logging
 
 from app.utils.storage import StorageManager
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 class VersionManager(StorageManager):
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         self.filename = "version_manager.json"
         super().__init__(env, s3_bucket)
+        self.create_version_manager()
 
     def save_model(self, model, metadata) -> None:
         """
@@ -43,8 +47,13 @@ class VersionManager(StorageManager):
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=metadata_path, Body=json.dumps(metadata))
     
     def create_version_manager(self):
+        """Create version manager configuration file if it doesn't exist."""
         if self.exists(self.filename):
+            logger.info(f"Version manager file already exists: {self.filename}")
             return
+            
+        logger.info(f"Creating version manager file: {self.filename}")
+        
         data = {
             "Alta": {
                 "version": "",
@@ -74,12 +83,18 @@ class VersionManager(StorageManager):
         }
 
         if self.env == "local":
-            os.makedirs(os.path.dirname(self.filename), exist_ok=True)
-            with open(self.filename, 'wb') as f:
-                f.write(json.dumps(data))
+            # Create directory only if filename has a directory component
+            dir_path = os.path.dirname(self.filename)
+            if dir_path:  # Only create if there's actually a directory
+                os.makedirs(dir_path, exist_ok=True)
+            
+            with open(self.filename, 'w') as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Version manager file created locally: {self.filename}")
             return
 
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(data))
+        logger.info(f"Version manager file created in S3: {self.filename}")
 
     def get_version_manager(self):
         if self.env == "local":
