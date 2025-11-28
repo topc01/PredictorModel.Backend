@@ -147,6 +147,9 @@ def limpiar_excel_inicial(archivo: BinaryIO) -> pd.DataFrame:
 
     print("[INFO] Fechas procesadas correctamente.")
 
+    print("[INFO] Calculando estación...")
+    df['estacion'] = df['mes_ingreso'].apply(get_season)
+
     return df
 
 
@@ -279,13 +282,17 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
     df = limpiar_excel_inicial(archivo)
     
     # Procesar cada complejidad
-    complejidades = ['Baja', 'Media', 'Alta', 'Neonatología', 'Pediatría']
+    complejidades = ['Baja', 'Maternidad', 'Media', 'Alta', 'Neonatología', 'Pediatría', 'Inte. Pediátrico']
+
     dfs_todos = []
 
     for c in complejidades:
-        df_c = preparar_datos_por_complejidad(df, c)
-        if df_c is not None:
-            dfs_todos.append(df_c)
+        try:
+            df_c = preparar_datos_por_complejidad(df, c)
+            if df_c is not None:
+                dfs_todos.append(df_c)
+        except Exception as e:
+            print(f"[ERROR] Falló el procesamiento de {c}: {e}")
     
     df_final = pd.concat(dfs_todos, ignore_index=True).sort_values(['semana_año', 'complejidad'])
     storage_manager.save_csv(df_final, "dataset.csv")
