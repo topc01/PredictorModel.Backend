@@ -8,6 +8,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import logging
+from pathlib import Path
 
 from app.utils.storage import StorageManager
 
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 class VersionManager(StorageManager):
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
-        self.filename = "version_manager.json"
+        # Set base directory for version management files
+        self.base_dir = "models"
+        self.filename = f"{self.base_dir}/version_manager.json"
         super().__init__(env, s3_bucket)
         self.create_version_manager()
 
@@ -115,9 +118,9 @@ class VersionManager(StorageManager):
             "activated_by": user
         }
         if self.env == "local":
-            with open(self.filename, 'wb') as f:
-                f.write(json.dumps(versions))
-            return
+            with open(self.filename, 'w') as f:
+                json.dump(versions, f, indent=2)
+            return versions[complexity]
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
         return versions[complexity]
 
@@ -141,26 +144,36 @@ class VersionManager(StorageManager):
                 }
         
         if self.env == "local":
-            with open(self.filename, 'wb') as f:
-                f.write(json.dumps(versions))
-            return
+            with open(self.filename, 'w') as f:
+                json.dump(versions, f, indent=2)
+            return versions
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
         return versions
         
     def get_complexity_versions(self, complexity: str):
+        """Get all versions for a specific complexity."""
+        if self.env == "local":
+            # List local files
+            complexity_dir = f"models/{complexity}"
+            if not os.path.exists(complexity_dir):
+                return []
+            
+            versions = []
+            try:
+                # Walk through version directories
+                for version_dir in os.listdir(complexity_dir):
+                    metadata_path = os.path.join(complexity_dir, version_dir, "metadata.json")
+                    if os.path.exists(metadata_path):
+                        with open(metadata_path, 'r') as f:
+                            versions.append(json.load(f))
+                return versions
+            except Exception as e:
+                logger.error(f"Error getting local complexity versions: {e}")
+                return []
+        
+        # S3 mode
         s3_key = f"models/{complexity}"
         try:
-            if self.env == "local":
-                response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
-                if 'Contents' not in response:
-                    return []
-                
-                versions = []
-                for obj in response['Contents']:
-                    if obj['Key'].endswith("metadata.json"):
-                        metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=obj['Key'])
-                        versions.append(json.loads(metadata['Body'].read()))
-                return versions
             response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
             if 'Contents' not in response:
                 return []
@@ -174,7 +187,7 @@ class VersionManager(StorageManager):
         except self.s3_client.exceptions.NoSuchKey:
             return []
         except Exception as e:
-            print(f"Error getting complexity versions: {e}")
+            logger.error(f"Error getting S3 complexity versions: {e}")
             return []
 
     def get_version_metadata(self, complexity: str, version: str) -> Optional[Dict]:
@@ -191,14 +204,18 @@ class VersionManager(StorageManager):
         metadata_path = f"models/{complexity}/{version}/metadata.json"
         try:
             if self.env == "local":
-                with open(metadata_path, 'rb') as f:
+                if not os.path.exists(metadata_path):
+                    return None
+                with open(metadata_path, 'r') as f:
                     return json.load(f)
+            
+            # S3 mode
             metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metadata_path)
             return json.loads(metadata['Body'].read())
-        except self.s3_client.exceptions.NoSuchKey:
+        except FileNotFoundError:
             return None
         except Exception as e:
-            print(f"Error getting version metadata: {e}")
+            logger.error(f"Error getting version metadata: {e}")
             return None
 
     def compare_versions(self, complexity: str, versions: List[str]) -> List[Dict]:
