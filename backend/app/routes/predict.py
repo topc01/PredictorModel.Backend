@@ -62,6 +62,10 @@ async def predict_complexity(complexity: str):
                 return 'Neonatología'
             case 'pediatria':
                 return 'Pediatría'
+            case 'maternidad':
+                return 'Maternidad'
+            case 'intepediatrico':
+                return 'IntePediatrico'
             case _:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

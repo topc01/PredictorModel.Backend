@@ -116,6 +116,13 @@ def predict(complexity: str):
         upper = result.yhat_upper.values[-1]    
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
+    elif complexity == "Maternidad":
+        result = predict_prophet_model(model, periods=1)
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
     elif complexity == "Media":
         X_pred = pre_process_X_pred(df, feature_names)
         result = predict_random_forest(model, X_pred)
@@ -140,6 +147,13 @@ def predict(complexity: str):
         response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
         return response
     elif complexity == "Pediatría":
+        result = predict_prophet_model(model, periods=1)
+        prediccion = result.yhat.values[-1]
+        lower = result.yhat_lower.values[-1]
+        upper = result.yhat_upper.values[-1]    
+        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+        return response
+    elif complexity == "Inte. Pediátrico" or complexity == "IntePediatrico":
         result = predict_prophet_model(model, periods=1)
         prediccion = result.yhat.values[-1]
         lower = result.yhat_lower.values[-1]

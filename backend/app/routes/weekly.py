@@ -26,7 +26,7 @@ class WeeklyDataResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "message": "Datos recibidos correctamente",
-                "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
+                "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria", "maternidad", "intepediatrico"],
                 "data": {
                     "alta": {
                         "demanda_pacientes": 50,
@@ -78,7 +78,7 @@ class WeeklyDataResponse(BaseModel):
                 "application/json": {
                     "example": {
                         "message": "Datos recibidos correctamente",
-                        "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
+                        "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria", "maternidad", "intepediatrico"],
                         "data": {
                             "alta": {
                                 "demanda_pacientes": 50,
@@ -239,6 +239,10 @@ async def upload_data(
         contents = await file.read()
         
         df = pd.read_excel(io.BytesIO(contents))
+        # cambia el timestamp a string, como lo pide WeeklyData
+        for col in df.select_dtypes(include=["datetime64[ns]", "datetime"]):
+            df[col] = df[col].dt.strftime("%Y-%m-%d")
+
         WeeklyData.from_df(df)
         storage_manager.save_csv(df, "weekly.csv")
         # df.to_csv("data/weekly.csv", index=False)
@@ -255,6 +259,7 @@ async def upload_data(
         }
         
     except ValidationError as e:
+        print("VALIDATION ERROR:", e.errors())
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Error de validación de datos: {e.errors()}"
@@ -313,14 +318,14 @@ async def download_template():
     """
     
     data = {
-        'Complejidad': ['Alta', 'Baja', 'Media', 'Neonatología', 'Pediatría'],
-        'Demanda pacientes': [50, 30, 40, 15, 25],
-        'Estancia (días promedio)': [5.2, 3.8, 4, 8.2, 4],
-        'Pacientes no Qx': [30, 24, 40, 9, 75],
-        'Pacientes Qx': [20, 6, 10, 1, 25],
-        'Ingresos no urgentes': [45, 25, 75, 5, 6],
-        'Ingresos urgentes': [15, 5, 25, 5, 4],
-        'Fecha ingreso': [datetime.now().strftime('%Y-%m-%d')] * 5
+        'Complejidad': ['Alta', 'Baja', 'Media', 'Neonatología', 'Pediatría', "Maternidad", "Inte. Pediátrico"],
+        'Demanda pacientes': [50, 30, 40, 15, 25, 15, 25],
+        'Estancia (días promedio)': [5.2, 3.8, 4, 8.2, 4, 15, 25],
+        'Pacientes no Qx': [30, 24, 40, 9, 75, 15, 25],
+        'Pacientes Qx': [20, 6, 10, 1, 25, 15, 25],
+        'Ingresos no urgentes': [45, 25, 75, 5, 6, 15, 25],
+        'Ingresos urgentes': [15, 5, 25, 5, 4, 15, 25],
+        'Fecha ingreso': [datetime.now().strftime('%Y-%m-%d')] * 7
     }
     
     df = pd.DataFrame(data)
@@ -391,7 +396,11 @@ async def get_last_date():
   try:
     # df = pd.read_csv("data/weekly.csv")
     df = storage_manager.load_csv("weekly.csv")
+    df["Fecha ingreso"] = pd.to_datetime(df["Fecha ingreso"], errors="coerce")
     last_date = df["Fecha ingreso"].max()
+    # sumar una semana completa
+    last_date = last_date + pd.Timedelta(weeks=1)
+    last_date = last_date.date() 
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
