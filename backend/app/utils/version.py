@@ -355,24 +355,6 @@ s3://tu-bucket/models/
             logger.error(f"Error getting version metadata: {e}")
             return None
 
-    def compare_versions(self, complexity: str, versions: List[str]) -> List[Dict]:
-        """
-        Compare metrics between multiple versions.
-        
-        Args:
-            complexity: Model complexity
-            versions: List of version identifiers
-            
-        Returns:
-            List of version metadata for comparison
-        """
-        comparison = []
-        for version in versions:
-            metadata = self.get_version_metadata(complexity, version)
-            if metadata:
-                comparison.append(metadata)
-        return comparison
-
     def get_versions(self):
         complexities = { complexity: [] for complexity in self.complexities }
         for complexity in complexities.keys():
@@ -382,28 +364,6 @@ s3://tu-bucket/models/
 
     def get_active_versions(self):
         return { complexity: self.get_active_version(complexity) for complexity in self.complexities }
-
-    def get_stats(self) -> Dict:
-        """
-        Get statistics about the model versioning system.
-        
-        Returns:
-            Dictionary with system statistics
-        """
-        all_versions = self.get_versions()
-        active_config = self.get_version_manager()
-        
-        total_versions = sum(len(versions) for versions in all_versions.values())
-        versions_by_complexity = {k: len(v) for k, v in all_versions.items()}
-        active_versions = {k: v.get("version", "") for k, v in active_config.items()}
-        
-        return {
-            "total_versions": total_versions,
-            "versions_by_complexity": versions_by_complexity,
-            "active_versions": active_versions,
-            "complexities": list(all_versions.keys())
-        }
-
 
 
 
