@@ -139,7 +139,6 @@ def retrain_prophet_model(complexity: str):
     )
 
     model.fit(df_prophet)
-    
         
     future = model.make_future_dataframe(periods=1, freq='W')
 
