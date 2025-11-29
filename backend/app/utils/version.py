@@ -85,7 +85,9 @@ s3://tu-bucket/models/
 
         class Path:
             base_dir = "models"
-            def __call__(self_, complexity: str, version: str = None):
+            _complexity = None
+            _version = None
+            def __call__(self_, complexity: str, version: Optional[str] = None):
                 self_._complexity = complexity
                 self_._version = version
                 return self_
@@ -255,7 +257,7 @@ s3://tu-bucket/models/
         """Method to get raw active version data from JSON."""
         return self._active_versions.get(complexity, {})
 
-    def get_latest_version(self, complexity: str) -> str:
+    def get_latest_version(self, complexity: str) -> Optional[str]:
         versions = self.get_complexity_versions(complexity)
         if not versions:
             raise ValueError(f"No versions available for complexity: {complexity}")
@@ -298,9 +300,6 @@ s3://tu-bucket/models/
         
         return version
 
-    def get_active_versions(self) -> dict:
-        active_versions = { complexity: self.get_active_version_data(complexity) for complexity in self.complexities }
-        return active_versions
     
     def get_model(self, complexity: str) -> "Model":
         """
