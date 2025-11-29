@@ -182,7 +182,7 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining models...")
-    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "IntePediatrico"]:
+    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "Inte. Pediátrico"]:
         retrain_prophet_model(complexity=e)
     print("Models retrained.")
     pass
@@ -195,7 +195,7 @@ def get_prophet_models(complexity: str):
 
     complexity_path = os.path.join(BASE_MODELS_PATH, complexity)
     try:
-        complexity = complexity.replace("Neonatologia", "Neonatología").replace("Pediatria", "Pediatría")
+        complexity = complexity.replace("Neonatologia", "Neonatología").replace("Pediatria", "Pediatría").replace("Inte. Pediatrico", "Inte. Pediátrico")
     except:
         pass
     try:

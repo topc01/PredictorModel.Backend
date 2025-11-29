@@ -5,6 +5,7 @@ import numpy as np
 import prophet
 import joblib
 from ..utils.storage import storage_manager
+from ..utils.version import version_manager
 from ..retrain.retrain import get_prophet_models
 
 import os
@@ -103,22 +104,28 @@ def predict(complexity: str, version_to_load: str = None):
     feature_names = joblib.load(FEATURE_PATH)
 
     try:
+        # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
+        # model_path = f"models/{complexity}.pkl"
         np.random.seed(42)
+        # model = joblib.load(model_path)
+        model = version_manager.get_model(complexity)
+        
+        #np.random.seed(42)
         #Manejo de nombres con tildes
-        if complexity == "Pediatría":
-            complexity_to_load = "Pediatria"
-        elif complexity == "Neonatología":
-            complexity_to_load = "Neonatologia"
-        else:
-            complexity_to_load = complexity
+        #if complexity == "Pediatría":
+         #   complexity_to_load = "Pediatria"
+        #elif complexity == "Neonatología":
+         #   complexity_to_load = "Neonatologia"
+        #else:
+         #   complexity_to_load = complexity
         ###
         # Para seleccionar el modelo con mejor rendimiento
-        if version_to_load == None:
-            version = choose_best_model(get_prophet_models(complexity=complexity_to_load))["version"]
-        else:
-            version = version_to_load
+        #if version_to_load == None:
+        #    version = choose_best_model(get_prophet_models(complexity=complexity_to_load))["version"]
+        #else:
+         #   version = version_to_load
         ######
-        model = storage_manager.load_prophet_model(complexity_to_load, version)
+        #model = storage_manager.load_prophet_model(complexity_to_load, version)
     except Exception as e:
         raise Exception(f"error {e}")
 
