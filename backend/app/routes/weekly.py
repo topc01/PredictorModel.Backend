@@ -240,8 +240,9 @@ async def upload_data(
         
         df = pd.read_excel(io.BytesIO(contents))
         # cambia el timestamp a string, como lo pide WeeklyData
+        # Handle NaT values to avoid strftime errors on invalid/missing dates
         for col in df.select_dtypes(include=["datetime64[ns]", "datetime"]):
-            df[col] = df[col].dt.strftime("%Y-%m-%d")
+            df[col] = df[col].apply(lambda x: x.strftime("%Y-%m-%d") if pd.notna(x) else None)
 
         WeeklyData.from_df(df)
         storage_manager.save_csv(df, "weekly.csv")
@@ -398,9 +399,21 @@ async def get_last_date():
     df = storage_manager.load_csv("weekly.csv")
     df["Fecha ingreso"] = pd.to_datetime(df["Fecha ingreso"], errors="coerce")
     last_date = df["Fecha ingreso"].max()
+    
+    # Check if last_date is NaT (all dates were invalid)
+    # Use is pd.NaT for scalar comparison to avoid type checker issues
+    if last_date is pd.NaT:
+      raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No se encontraron fechas válidas en los datos semanales"
+      )
+    
     # sumar una semana completa
     last_date = last_date + pd.Timedelta(weeks=1)
     last_date = last_date.date() 
+  except HTTPException:
+    # Re-raise HTTPException as-is
+    raise
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,
