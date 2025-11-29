@@ -69,7 +69,7 @@ s3://tu-bucket/models/
         self.base_dir = "models"
         self.filename = f"{self.base_dir}/active_versions.json"
         super().__init__(env, s3_bucket)
-        self.create_version_manager()
+        self._create_version_manager()
 
     def save_model(self, model, metadata) -> None:
         """
@@ -124,7 +124,7 @@ s3://tu-bucket/models/
         )
         logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
     
-    def load_model(self, complexity: str, version: str):
+    def _load_model(self, complexity: str, version: str) -> "Model":
         """
         Load a model from storage using joblib.
         
@@ -170,7 +170,7 @@ s3://tu-bucket/models/
             raise FileNotFoundError(f"Model not found in S3: s3://{self.s3_bucket}/{model_path}")
 
     
-    def create_version_manager(self):
+    def _create_version_manager(self) -> None:
         """Create version manager configuration file if it doesn't exist."""
         if self.exists(self.filename):
             logger.info(f"Version manager file already exists: {self.filename}")
@@ -194,7 +194,8 @@ s3://tu-bucket/models/
         self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(data))
         logger.info(f"Version manager file created in S3: {self.filename}")
 
-    def get_version_manager(self):
+    @property
+    def _active_versions(self) -> dict:
         if self.env == "local":
             with open(self.filename, 'rb') as f:
                 return json.load(f)
