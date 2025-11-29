@@ -183,31 +183,6 @@ async def get_version_details(complexity: str, version_id: str):
         )
     return metadata
 
-@router.get(
-    "/{complexity}/compare",
-    status_code=status.HTTP_200_OK,
-    summary="Compare multiple versions",
-    description="""
-    Compare metrics between multiple versions of a model.
-    Provide version IDs as comma-separated query parameter.
-    Example: /models/Alta/compare?versions=v1,v2,v3
-    """,
-)
-async def compare_model_versions(complexity: str, versions: str):
-    """Compare multiple versions."""
-    version_list = [v.strip() for v in versions.split(",")]
-    comparison = version_manager.compare_versions(complexity, version_list)
-    
-    if not comparison:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No versions found for comparison"
-        )
-    
-    return {
-        "complexity": complexity,
-        "comparison": comparison
-    }
 
 @router.put(
     "/{complexity}/active",
@@ -310,15 +285,3 @@ async def activate_models_batch(
         "message": f"Activated {len(versions_dict)} model versions",
         "data": result
     }
-
-@router.get(
-    "/stats",
-    status_code=status.HTTP_200_OK,
-    summary="Get model versioning statistics",
-    description="""
-    Get statistics about the model versioning system.
-    """,
-)
-async def get_model_stats():
-    """Get system statistics."""
-    return version_manager.get_stats()
