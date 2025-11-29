@@ -135,35 +135,50 @@ async def get_models_by_complexity(complexity: str):
 )
 async def get_active_models():
     """Get all active model versions."""
-    return version_manager.get_version_manager()
+    return version_manager.get_active_versions()
 
 @router.get(
     "/{complexity}/active",
     status_code=status.HTTP_200_OK,
     summary="Get active version for a specific complexity",
     description="""
-    Get the active version information for a specific complexity,
-    including metadata if available.
+    Get the active version information for a specific complexity.
+    
+    If no active version is configured, automatically returns the latest version.
     """,
 )
 async def get_active_model_by_complexity(complexity: str):
-    """Get active version for a specific complexity."""
-    active_data = version_manager.get_active_version_data(complexity)
-    if not active_data or not active_data.get("version"):
+    """Get active version for a specific complexity (or latest if none set)."""
+    try:
+        # Get the version to use (active or latest)
+        version = version_manager.get_active_version(complexity)
+        
+        # Get metadata for this version
+        metadata = version_manager.get_version_metadata(complexity, version)
+        
+        # Get active version data to check if it's explicitly set
+        active_data = version_manager.get_active_version_data(complexity)
+        is_explicitly_set = bool(active_data.get("version"))
+        
+        return {
+            "complexity": complexity,
+            "version": version,
+            "activated_at": active_data.get("activated_at") if is_explicitly_set else None,
+            "activated_by": active_data.get("activated_by") if is_explicitly_set else None,
+            "is_explicitly_set": is_explicitly_set,
+            "metadata": metadata
+        }
+        
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No active version found for complexity: {complexity}"
+            detail=str(e)
         )
-    
-    # Get metadata if version exists
-    version = active_data.get("version")
-    metadata = version_manager.get_version_metadata(complexity, version)
-    
-    return {
-        "complexity": complexity,
-        **active_data,
-        "metadata": metadata
-    }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving active model: {str(e)}"
+        )
 
 @router.get(
     "/{complexity}/versions/{version_id}",
@@ -173,13 +188,13 @@ async def get_active_model_by_complexity(complexity: str):
     Get detailed metadata for a specific model version.
     """,
 )
-async def get_version_details(complexity: str, version_id: str):
+async def get_version_details(complexity: str, version: str):
     """Get metadata for a specific version."""
-    metadata = version_manager.get_version_metadata(complexity, version_id)
+    metadata = version_manager.get_version_metadata(complexity, version)
     if not metadata:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Version {version_id} not found for complexity: {complexity}"
+            detail=f"Version {version} not found for complexity: {complexity}"
         )
     return metadata
 
