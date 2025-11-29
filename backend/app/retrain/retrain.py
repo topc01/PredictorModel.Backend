@@ -87,6 +87,8 @@ def load_data(complexity: str):
         complexity = "Neonatología"
     elif complexity == "Inte. Pediatrico":
         complexity = "Inte. Pediátrico"
+    elif complexity == "IntePediatrico":
+        complexity = "Inte. Pediátrico"
 
     df = df[df["complejidad"] == complexity]
 
