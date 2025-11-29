@@ -300,7 +300,6 @@ s3://tu-bucket/models/
         
         return version
 
-    
     def get_model(self, complexity: str) -> "Model":
         """
         Load the model for a complexity.
