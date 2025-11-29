@@ -2,6 +2,7 @@ from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+import logging
 import asyncio
 import time
 
@@ -9,6 +10,10 @@ from app.routes import router
 from app.core.config import settings
 from app.core.redis import close_redis_client, get_redis_client
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 # Load environment variables from .env file (for local development)
 load_dotenv()
 
