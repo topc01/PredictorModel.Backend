@@ -5,6 +5,7 @@ import numpy as np
 import prophet
 import joblib
 from ..utils.storage import storage_manager
+from ..utils.version import version_manager
 
 def without_tilde(string: str) -> str:
     return string.replace('í', 'i')
@@ -90,9 +91,10 @@ def predict(complexity: str):
 
     try:
         # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
-        model_path = f"models/{complexity}.pkl"
+        # model_path = f"models/{complexity}.pkl"
         np.random.seed(42)
-        model = joblib.load(model_path)
+        # model = joblib.load(model_path)
+        model = version_manager.get_model(complexity)
         print(f"modelo cargado en pkl")
     except Exception as e:
         raise Exception(f"error {e}")
