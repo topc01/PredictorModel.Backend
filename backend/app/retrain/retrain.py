@@ -8,7 +8,7 @@ from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 from fastapi import HTTPException
-from app.utils.version import version_manager
+from app.utils.version import version_manager, ComplexityMapper
 from app.utils.storage import storage_manager
 
 def save_prophet_model(model, metrics, complexity, df_prophet):
@@ -81,12 +81,9 @@ def load_data(complexity: str):
     if df is None or df.empty:
         raise ValueError("El DataFrame cargado está vacío o es None.")
 
-    if complexity == "Pediatria":
-        complexity = "Pediatría"
-    elif complexity == "Neonatologia":
-        complexity = "Neonatología"
-    elif complexity == "Inte. Pediatrico":
-        complexity = "Inte. Pediátrico"
+    # Convert label to real name if needed
+    if ComplexityMapper.is_valid_label(complexity):
+        complexity = ComplexityMapper.to_real_name(complexity)
 
     df = df[df["complejidad"] == complexity]
 
@@ -180,8 +177,8 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining models...")
-    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "Inte. Pediátrico"]:
-        retrain_prophet_model(complexity=e)
+    for complexity in ComplexityMapper.get_all_real_names():
+        retrain_prophet_model(complexity=complexity)
     print("Models retrained.")
     pass
 
@@ -191,11 +188,11 @@ def get_prophet_models(complexity: str):
     """
     BASE_MODELS_PATH = "models/prophet"
 
+    # Convert label to real name if needed
+    if ComplexityMapper.is_valid_label(complexity):
+        complexity = ComplexityMapper.to_real_name(complexity)
+    
     complexity_path = os.path.join(BASE_MODELS_PATH, complexity)
-    try:
-        complexity = complexity.replace("Neonatologia", "Neonatología").replace("Pediatria", "Pediatría").replace("Inte. Pediatrico", "Inte. Pediátrico")
-    except:
-        pass
     try:
         if not os.path.exists(complexity_path):
             raise HTTPException(status_code=404, detail="No hay modelos guardados para esta complejidad.")

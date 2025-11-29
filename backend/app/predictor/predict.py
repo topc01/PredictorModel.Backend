@@ -6,9 +6,7 @@ import prophet
 import joblib
 from ..utils.storage import storage_manager
 from ..utils.version import version_manager
-
-def without_tilde(string: str) -> str:
-    return string.replace('í', 'i')
+# Note: Complexity parsing is handled in routes/predict.py using ComplexityMapper
 
 def pre_process_X_pred(df: pd.DataFrame, feature_names: list) -> pd.DataFrame:
     X = df.drop(columns=["demanda_pacientes", "complejidad"])

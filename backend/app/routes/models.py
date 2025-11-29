@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
 
-from app.utils.version import version_manager
+from app.utils.version import version_manager, ComplexityMapper
 
 router = APIRouter(
     tags=["Models"],
@@ -9,6 +9,53 @@ router = APIRouter(
         422: {"description": "Error de validación"},
     },
 )
+
+@router.get(
+    "/complexities",
+    status_code=status.HTTP_200_OK,
+    summary="Get all available complexities",
+    description="""
+    Get a list of all available complexity levels with their API labels and real names.
+    
+    Use the API labels (lowercase) in your API requests.
+    """,
+    responses={
+        200: {
+            "description": "List of all available complexities",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "complexities": [
+                            {
+                                "label": "baja",
+                                "real_name": "Baja",
+                                "description": "Use 'baja' in API requests"
+                            },
+                            {
+                                "label": "neonatologia",
+                                "real_name": "Neonatología",
+                                "description": "Use 'neonatologia' in API requests"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
+async def get_complexities():
+    """Get all available complexity levels."""
+    labels = ComplexityMapper.get_all_labels()
+    return {
+        "complexities": [
+            {
+                "label": label.lower(),
+                "real_name": ComplexityMapper.to_real_name(label),
+                "description": f"Use '{label.lower()}' in API requests"
+            }
+            for label in labels
+        ]
+    }
 
 @router.get(
     "/versions",
