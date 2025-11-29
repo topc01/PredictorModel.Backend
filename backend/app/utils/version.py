@@ -16,6 +16,18 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+def label(complexity: str) -> str:
+    """
+    Convert complexity to label
+    """
+    if complexity == "Neonatología":
+        return "Neonatologia"
+    if complexity == "Pediatría":
+        return "Pediatria"
+    if complexity == "Inte. Pediátrico":
+        return "IntePediatrico"
+    return complexity
+
 class VersionManager(StorageManager):
     """
 Version manager for models
