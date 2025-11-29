@@ -31,7 +31,7 @@ class VersionManager(StorageManager):
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files
         self.base_dir = "models"
-        self.filename = f"{self.base_dir}/version_manager.json"
+        self.filename = f"{self.base_dir}/active_versions.json"
         super().__init__(env, s3_bucket)
         self.create_version_manager()
 
