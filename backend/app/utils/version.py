@@ -360,31 +360,21 @@ s3://tu-bucket/models/
         """Get all versions for a specific complexity."""
         if self.env == "local":
             # List local files
-            # complexity_dir = f"models/{complexity}"
             complexity_dir = self.path(complexity).dir
-            # raise Exception(f"Listing versions for complexity: {complexity_dir}")
-            logger.warning(f"Listing versions for complexity: {complexity_dir}")
             if not os.path.exists(complexity_dir):
-                raise Exception("Path does not exist")
                 logger.warning(f"No versions found for complexity: {complexity_dir}")
                 return []
             
             versions = []
             try:
                 # Walk through version directories
-                logger.warning(f"HEREEEEEEEE")
                 for version_dir in os.listdir(complexity_dir):
-                    logger.warning(f"version_dir: {version_dir}")
-                    # metadata_path = os.path.join(complexity_dir, version_dir, "metadata.json")
                     metadata_path = self.path(complexity, version_dir).metadata
-                    logger.warning(f"metadata_path: {metadata_path}")
                     if os.path.exists(metadata_path):
-                        logger.warning(f"metadata_path exists: {metadata_path}")
                         with open(metadata_path, 'r') as f:
                             versions.append(json.load(f))
                 return versions
             except Exception as e:
-                raise Exception("Error getting local complexity versions")
                 logger.error(f"Error getting local complexity versions: {e}")
                 return []
         
