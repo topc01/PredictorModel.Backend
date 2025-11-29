@@ -17,6 +17,42 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class VersionManager(StorageManager):
+    """
+Version manager for models
+
+s3://tu-bucket/models/  
+├── Alta/
+│   ├── v1_2024-11-26_18-30-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   ├── v2_2024-11-27_10-15-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   └── v3_2024-11-28_14-45-00/
+│       ├── model.pkl
+│       └── metadata.json
+├── Baja/
+│   ├── v1_2024-11-26_18-30-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   └── v2_2024-11-27_10-15-00/
+│       ├── model.pkl
+│       └── metadata.json
+├── Media/
+│   └── ...
+├── Neonatología/
+│   └── ...
+├── Pediatría/
+│   └── ...
+├── (in progress) Inte. Pediátrico/ # TODO
+│   └── ...
+├── (in progress) Maternidad/ # TODO
+│   └── ...
+├── feature_names/
+│   ├── v1_2024-11-26_18-30-00.pkl
+│   └── v2_2024-11-27_10-15-00.pkl
+└── active_versions.json 
+    """
 
     complexities = [
         "Baja",
