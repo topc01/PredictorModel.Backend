@@ -18,7 +18,7 @@ services:
   celery-worker:
     build: ./backend
     image: backend
-    command: uv run celery -A app.core.celery_app worker --loglevel=info
+    command: uv run python -m celery -A app.core.celery_app worker --loglevel=info
     volumes:
       - ./backend:/app
     environment:
