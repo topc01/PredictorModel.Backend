@@ -16,13 +16,111 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+def label(complexity: str) -> str:
+    """
+    Convert complexity to label
+    """
+    if complexity == "Neonatología":
+        return "Neonatologia"
+    if complexity == "Pediatría":
+        return "Pediatria"
+    if complexity == "Inte. Pediátrico":
+        return "IntePediatrico"
+    return complexity
+
 class VersionManager(StorageManager):
+    """
+Version manager for models
+
+s3://tu-bucket/models/  
+├── Alta/
+│   ├── v1_2024-11-26_18-30-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   ├── v2_2024-11-27_10-15-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   └── v3_2024-11-28_14-45-00/
+│       ├── model.pkl
+│       └── metadata.json
+├── Baja/
+│   ├── v1_2024-11-26_18-30-00/
+│   │   ├── model.pkl
+│   │   └── metadata.json
+│   └── v2_2024-11-27_10-15-00/
+│       ├── model.pkl
+│       └── metadata.json
+├── Media/
+│   └── ...
+├── Neonatología/
+│   └── ...
+├── Pediatría/
+│   └── ...
+├── (in progress) Inte. Pediátrico/ # TODO
+│   └── ...
+├── (in progress) Maternidad/ # TODO
+│   └── ...
+├── feature_names/
+│   ├── v1_2024-11-26_18-30-00.pkl
+│   └── v2_2024-11-27_10-15-00.pkl
+└── active_versions.json 
+    """
+
+    __complexities = [
+        "Baja",
+        "Media",
+        "Alta",
+        "Neonatología",
+        "Pediatría",
+        "Inte. Pediátrico",
+        "Maternidad"
+    ]
+    complexities = list(map(label, __complexities))
+
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files
         self.base_dir = "models"
-        self.filename = f"{self.base_dir}/version_manager.json"
+        self.filename = f"{self.base_dir}/active_versions.json"
         super().__init__(env, s3_bucket)
-        self.create_version_manager()
+
+        class Path:
+            base_dir = "models"
+            _complexity = None
+            _version = None
+            def __call__(self_, complexity: str, version: Optional[str] = None):
+                self_._complexity = complexity
+                self_._version = version
+                return self_
+            @property
+            def complexity(self_):
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return self_._complexity
+            @property
+            def version(self_):
+                if not self_._version:
+                    raise ValueError("Version not set")
+                return self_._version
+            @property
+            def model(self_):
+                return f"{self_.version_dir}/model.pkl"
+            @property
+            def metadata(self_):
+                return f"{self_.version_dir}/metadata.json"
+            @property
+            def dir(self_):
+                return f"{self_.base_dir}/{label(self_.complexity)}"
+            @property
+            def version_dir(self_):
+                return f"{self_.dir}/{self_.version}"
+            @property
+            def active_versions_register(self_):
+                return f"{self_.base_dir}/active_versions.json"
+
+        
+
+        self.path = Path()
+        self._create_version_manager()
 
     def save_model(self, model, metadata) -> None:
         """
@@ -41,8 +139,8 @@ class VersionManager(StorageManager):
         
         version = metadata.get("version")
         complexity = metadata.get("complexity")
-        model_path = f"models/{complexity}/{version}/model.pkl"
-        metadata_path = f"models/{complexity}/{version}/metadata.json"
+        model_path = self.path(complexity, version).model
+        metadata_path = self.path(complexity, version).metadata
 
         if self.env == "local":
             # Local mode: Direct file write
@@ -77,7 +175,7 @@ class VersionManager(StorageManager):
         )
         logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
     
-    def load_model(self, complexity: str, version: str):
+    def _load_model(self, complexity: str, version: str) -> "Model":
         """
         Load a model from storage using joblib.
         
@@ -95,7 +193,7 @@ class VersionManager(StorageManager):
         import joblib
         from io import BytesIO
         
-        model_path = f"models/{complexity}/{version}/model.pkl"
+        model_path = self.path(complexity, version).model
         
         if self.env == "local":
             # Local mode: Direct file read
@@ -123,123 +221,116 @@ class VersionManager(StorageManager):
             raise FileNotFoundError(f"Model not found in S3: s3://{self.s3_bucket}/{model_path}")
 
     
-    def create_version_manager(self):
+    def _create_version_manager(self) -> None:
         """Create version manager configuration file if it doesn't exist."""
         if self.exists(self.filename):
             logger.info(f"Version manager file already exists: {self.filename}")
             return
-            
-        logger.info(f"Creating version manager file: {self.filename}")
+        manager_path = self.path.active_versions_register
+        logger.info(f"Creating version manager file: {manager_path}")
         
-        data = {
-            "Alta": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Media": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Baja": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Neonatología": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            },
-            "Pediatría": {
-                "version": "",
-                "activated_at": "",
-                "activated_by": ""
-            }
-        }
-
+        data = { complexity: { "version": "", "activated_at": "", "activated_by": "" } for complexity in self.complexities }
+        self.data = data
         if self.env == "local":
             # Create directory only if filename has a directory component
-            dir_path = os.path.dirname(self.filename)
+            dir_path = os.path.dirname(manager_path)
             if dir_path:  # Only create if there's actually a directory
                 os.makedirs(dir_path, exist_ok=True)
             
-            with open(self.filename, 'w') as f:
+            with open(manager_path, 'w') as f:
                 json.dump(data, f, indent=2)
-            logger.info(f"Version manager file created locally: {self.filename}")
+            logger.info(f"Version manager file created locally: {manager_path}")
             return
 
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(data))
-        logger.info(f"Version manager file created in S3: {self.filename}")
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=manager_path, Body=json.dumps(data))
+        logger.info(f"Version manager file created in S3: {manager_path}")
 
-    def get_version_manager(self):
+    @property
+    def _active_versions(self) -> dict:
         if self.env == "local":
-            with open(self.filename, 'rb') as f:
+            with open(self.path.active_versions_register, 'rb') as f:
                 return json.load(f)
-        obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.filename)
+        obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.path.active_versions_register)
         return json.loads(obj['Body'].read())
 
-    def get_active_version_data(self, complexity: str):
-        versions = self.get_version_manager()
-        return versions.get(complexity, {})
+    def get_active_version_data(self, complexity: str) -> dict:
+        """Method to get raw active version data from JSON."""
+        return self._active_versions.get(complexity, {})
 
-    def get_active_model(self, complexity: str):
-        """
-        Get the currently active model for a complexity.
+    def get_latest_version(self, complexity: str) -> Optional[str]:
+        versions = self.get_complexity_versions(complexity)
+        if not versions:
+            raise ValueError(f"No versions available for complexity: {complexity}")
         
-        If no active version is set, defaults to the latest version.
+        # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS)
+        sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
+        version = sorted_versions[0].get("version")
+        return version
+
+    def get_active_version(self, complexity: str) -> str:
+        """
+        Get the active version for a complexity.
+        
+        If no active version is set in active_versions.json, returns the latest version.
+        This is the main method to use for getting which version to use.
         
         Args:
             complexity: Model complexity
             
         Returns:
-            Loaded active model object
+            Version string (e.g., "v_2025-11-28_17-18-28")
             
         Raises:
             ValueError: If no versions exist for the complexity
-            FileNotFoundError: If the model file doesn't exist
         """
-        active_data = self.get_active_version_data(complexity)
-        version = active_data.get("version")
         
-        # If no active version, get the latest one
+        version = self._active_versions.get(complexity, {}).get("version")
+        
+        # If no active version set, get the latest one
         if not version:
             logger.info(f"No active version set for {complexity}, using latest version")
-            versions = self.get_complexity_versions(complexity)
-            
-            if not versions:
-                raise ValueError(f"No versions available for complexity: {complexity}")
-            
-            # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS or similar)
-            # Get the last one (most recent)
-            sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
-            version = sorted_versions[0].get("version")
+            version = self.get_latest_version(complexity)
             
             if not version:
-                raise ValueError(f"Could not determine latest version for complexity: {complexity}")
+                raise ValueError(f"No versions available for complexity: {complexity}")
             
             logger.info(f"Using latest version for {complexity}: {version}")
         else:
-            logger.info(f"Loading active model for {complexity}: {version}")
+            logger.info(f"Using active version for {complexity}: {version}")
         
-        return self.load_model(complexity, version)
+        return version
 
-    def set_active_version(self, complexity: str, version: str, user: str = "system"):
-        versions = self.get_version_manager()
-        versions[complexity] = {
+    
+    def get_model(self, complexity: str) -> "Model":
+        """
+        Load the model for a complexity.
+        
+        Uses get_active_version() to determine which version to load,
+        then loads that model.
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Loaded model object
+        """
+        version = self.get_active_version(complexity)
+        return self._load_model(complexity, version)
+
+    def set_active_version(self, complexity: str, version: str, user: str = "system") -> None:
+        active_versions = self._active_versions
+        active_versions[complexity] = {
             "version": version,
             "activated_at": datetime.now().isoformat(),
             "activated_by": user
         }
         if self.env == "local":
             with open(self.filename, 'w') as f:
-                json.dump(versions, f, indent=2)
-            return versions[complexity]
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
-        return versions[complexity]
+                json.dump(active_versions, f, indent=2)
+            return
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(active_versions))
 
-    def set_active_versions_batch(self, versions_dict: Dict[str, str], user: str = "system"):
+    def set_active_versions_batch(self, versions_dict: Dict[str, str], user: str = "system") -> None:
         """
         Set multiple active versions at once.
         
@@ -247,12 +338,12 @@ class VersionManager(StorageManager):
             versions_dict: Dictionary mapping complexity to version
             user: User making the change
         """
-        versions = self.get_version_manager()
+        active_versions = self._active_versions
         timestamp = datetime.now().isoformat()
         
         for complexity, version in versions_dict.items():
-            if complexity in versions:
-                versions[complexity] = {
+            if complexity in active_versions:
+                active_versions[complexity] = {
                     "version": version,
                     "activated_at": timestamp,
                     "activated_by": user
@@ -260,24 +351,24 @@ class VersionManager(StorageManager):
         
         if self.env == "local":
             with open(self.filename, 'w') as f:
-                json.dump(versions, f, indent=2)
-            return versions
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
-        return versions
+                json.dump(active_versions, f, indent=2)
+            return  
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(active_versions))
         
-    def get_complexity_versions(self, complexity: str):
+    def get_complexity_versions(self, complexity: str) -> list[dict]:
         """Get all versions for a specific complexity."""
         if self.env == "local":
             # List local files
-            complexity_dir = f"models/{complexity}"
+            complexity_dir = self.path(complexity).dir
             if not os.path.exists(complexity_dir):
+                logger.warning(f"No versions found for complexity: {complexity_dir}")
                 return []
             
             versions = []
             try:
                 # Walk through version directories
                 for version_dir in os.listdir(complexity_dir):
-                    metadata_path = os.path.join(complexity_dir, version_dir, "metadata.json")
+                    metadata_path = self.path(complexity, version_dir).metadata
                     if os.path.exists(metadata_path):
                         with open(metadata_path, 'r') as f:
                             versions.append(json.load(f))
@@ -287,7 +378,7 @@ class VersionManager(StorageManager):
                 return []
         
         # S3 mode
-        s3_key = f"models/{complexity}"
+        s3_key = self.path(complexity).dir
         try:
             response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
             if 'Contents' not in response:
@@ -316,7 +407,7 @@ class VersionManager(StorageManager):
         Returns:
             Metadata dictionary or None if not found
         """
-        metadata_path = f"models/{complexity}/{version}/metadata.json"
+        metadata_path = self.path(complexity, version).metadata
         try:
             if self.env == "local":
                 if not os.path.exists(metadata_path):
@@ -333,54 +424,15 @@ class VersionManager(StorageManager):
             logger.error(f"Error getting version metadata: {e}")
             return None
 
-    def compare_versions(self, complexity: str, versions: List[str]) -> List[Dict]:
-        """
-        Compare metrics between multiple versions.
-        
-        Args:
-            complexity: Model complexity
-            versions: List of version identifiers
-            
-        Returns:
-            List of version metadata for comparison
-        """
-        comparison = []
-        for version in versions:
-            metadata = self.get_version_metadata(complexity, version)
-            if metadata:
-                comparison.append(metadata)
-        return comparison
-
     def get_versions(self):
-        complexities = {
-            "Baja": [], "Media": [], "Alta": [], "Neonatología": [], "Pediatría": []
-        }
+        complexities = { complexity: [] for complexity in self.complexities }
         for complexity in complexities.keys():
             complexity_versions = self.get_complexity_versions(complexity)
             complexities[complexity] = complexity_versions
         return complexities
 
-    def get_stats(self) -> Dict:
-        """
-        Get statistics about the model versioning system.
-        
-        Returns:
-            Dictionary with system statistics
-        """
-        all_versions = self.get_versions()
-        active_config = self.get_version_manager()
-        
-        total_versions = sum(len(versions) for versions in all_versions.values())
-        versions_by_complexity = {k: len(v) for k, v in all_versions.items()}
-        active_versions = {k: v.get("version", "") for k, v in active_config.items()}
-        
-        return {
-            "total_versions": total_versions,
-            "versions_by_complexity": versions_by_complexity,
-            "active_versions": active_versions,
-            "complexities": list(all_versions.keys())
-        }
-
+    def get_active_versions(self):
+        return { complexity: self.get_active_version(complexity) for complexity in self.complexities }
 
 
 
