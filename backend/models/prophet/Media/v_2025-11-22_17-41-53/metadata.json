@@ -1,0 +1,12 @@
+{
+    "version": "v_2025-11-22_17-41-53",
+    "complexity": "Media",
+    "trained_at": "2025-11-22 17:41:53",
+    "n_samples": 90,
+    "params": {
+        "yearly_seasonality": true,
+        "weekly_seasonality": false,
+        "daily_seasonality": false,
+        "seasonality_mode": "additive"
+    }
+}
