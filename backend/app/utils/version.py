@@ -249,23 +249,40 @@ s3://tu-bucket/models/
         
         return version
 
-  
+    def get_active_versions(self) -> dict:
+        active_versions = { complexity: self.get_active_version_data(complexity) for complexity in self.complexities }
+        return active_versions
+    
+    def get_model(self, complexity: str) -> "Model":
+        """
+        Load the model for a complexity.
+        
+        Uses get_active_version() to determine which version to load,
+        then loads that model.
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Loaded model object
+        """
+        version = self.get_active_version(complexity)
+        return self._load_model(complexity, version)
 
-    def set_active_version(self, complexity: str, version: str, user: str = "system"):
-        versions = self.get_version_manager()
-        versions[complexity] = {
+    def set_active_version(self, complexity: str, version: str, user: str = "system") -> None:
+        active_versions = self._active_versions
+        active_versions[complexity] = {
             "version": version,
             "activated_at": datetime.now().isoformat(),
             "activated_by": user
         }
         if self.env == "local":
             with open(self.filename, 'w') as f:
-                json.dump(versions, f, indent=2)
-            return versions[complexity]
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
-        return versions[complexity]
+                json.dump(active_versions, f, indent=2)
+            return
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(active_versions))
 
-    def set_active_versions_batch(self, versions_dict: Dict[str, str], user: str = "system"):
+    def set_active_versions_batch(self, versions_dict: Dict[str, str], user: str = "system") -> None:
         """
         Set multiple active versions at once.
         
@@ -273,12 +290,12 @@ s3://tu-bucket/models/
             versions_dict: Dictionary mapping complexity to version
             user: User making the change
         """
-        versions = self.get_version_manager()
+        active_versions = self._active_versions
         timestamp = datetime.now().isoformat()
         
         for complexity, version in versions_dict.items():
-            if complexity in versions:
-                versions[complexity] = {
+            if complexity in active_versions:
+                active_versions[complexity] = {
                     "version": version,
                     "activated_at": timestamp,
                     "activated_by": user
@@ -286,12 +303,11 @@ s3://tu-bucket/models/
         
         if self.env == "local":
             with open(self.filename, 'w') as f:
-                json.dump(versions, f, indent=2)
-            return versions
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(versions))
-        return versions
+                json.dump(active_versions, f, indent=2)
+            return  
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(active_versions))
         
-    def get_complexity_versions(self, complexity: str):
+    def get_complexity_versions(self, complexity: str) -> list[dict]:
         """Get all versions for a specific complexity."""
         if self.env == "local":
             # List local files
