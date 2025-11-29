@@ -82,6 +82,42 @@ s3://tu-bucket/models/
         self.base_dir = "models"
         self.filename = f"{self.base_dir}/active_versions.json"
         super().__init__(env, s3_bucket)
+
+        class Path:
+            base_dir = "models"
+            def __call__(self_, complexity: str, version: str = None):
+                self_._complexity = complexity
+                self_._version = version
+                return self_
+            @property
+            def complexity(self_):
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return self_._complexity
+            @property
+            def version(self_):
+                if not self_._version:
+                    raise ValueError("Version not set")
+                return self_._version
+            @property
+            def model(self_):
+                return f"{self_.version_dir}/model.pkl"
+            @property
+            def metadata(self_):
+                return f"{self_.version_dir}/metadata.json"
+            @property
+            def dir(self_):
+                return f"{self_.base_dir}/{label(self_.complexity)}"
+            @property
+            def version_dir(self_):
+                return f"{self_.dir}/{self_.version}"
+            @property
+            def active_versions_register(self_):
+                return f"{self_.base_dir}/active_versions.json"
+
+        
+
+        self.path = Path()
         self._create_version_manager()
 
     def save_model(self, model, metadata) -> None:
@@ -101,8 +137,8 @@ s3://tu-bucket/models/
         
         version = metadata.get("version")
         complexity = metadata.get("complexity")
-        model_path = f"models/{complexity}/{version}/model.pkl"
-        metadata_path = f"models/{complexity}/{version}/metadata.json"
+        model_path = self.path(complexity, version).model
+        metadata_path = self.path(complexity, version).metadata
 
         if self.env == "local":
             # Local mode: Direct file write
@@ -155,7 +191,7 @@ s3://tu-bucket/models/
         import joblib
         from io import BytesIO
         
-        model_path = f"models/{complexity}/{version}/model.pkl"
+        model_path = self.path(complexity, version).model
         
         if self.env == "local":
             # Local mode: Direct file read
@@ -188,31 +224,31 @@ s3://tu-bucket/models/
         if self.exists(self.filename):
             logger.info(f"Version manager file already exists: {self.filename}")
             return
-            
-        logger.info(f"Creating version manager file: {self.filename}")
+        manager_path = self.path.active_versions_register
+        logger.info(f"Creating version manager file: {manager_path}")
         
         data = { complexity: { "version": "", "activated_at": "", "activated_by": "" } for complexity in self.complexities }
         self.data = data
         if self.env == "local":
             # Create directory only if filename has a directory component
-            dir_path = os.path.dirname(self.filename)
+            dir_path = os.path.dirname(manager_path)
             if dir_path:  # Only create if there's actually a directory
                 os.makedirs(dir_path, exist_ok=True)
             
-            with open(self.filename, 'w') as f:
+            with open(manager_path, 'w') as f:
                 json.dump(data, f, indent=2)
-            logger.info(f"Version manager file created locally: {self.filename}")
+            logger.info(f"Version manager file created locally: {manager_path}")
             return
 
-        self.s3_client.put_object(Bucket=self.s3_bucket, Key=self.filename, Body=json.dumps(data))
-        logger.info(f"Version manager file created in S3: {self.filename}")
+        self.s3_client.put_object(Bucket=self.s3_bucket, Key=manager_path, Body=json.dumps(data))
+        logger.info(f"Version manager file created in S3: {manager_path}")
 
     @property
     def _active_versions(self) -> dict:
         if self.env == "local":
-            with open(self.filename, 'rb') as f:
+            with open(self.path.active_versions_register, 'rb') as f:
                 return json.load(f)
-        obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.filename)
+        obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.path.active_versions_register)
         return json.loads(obj['Body'].read())
 
     def get_active_version_data(self, complexity: str) -> dict:
@@ -324,25 +360,36 @@ s3://tu-bucket/models/
         """Get all versions for a specific complexity."""
         if self.env == "local":
             # List local files
-            complexity_dir = f"models/{complexity}"
+            # complexity_dir = f"models/{complexity}"
+            complexity_dir = self.path(complexity).dir
+            # raise Exception(f"Listing versions for complexity: {complexity_dir}")
+            logger.warning(f"Listing versions for complexity: {complexity_dir}")
             if not os.path.exists(complexity_dir):
+                raise Exception("Path does not exist")
+                logger.warning(f"No versions found for complexity: {complexity_dir}")
                 return []
             
             versions = []
             try:
                 # Walk through version directories
+                logger.warning(f"HEREEEEEEEE")
                 for version_dir in os.listdir(complexity_dir):
-                    metadata_path = os.path.join(complexity_dir, version_dir, "metadata.json")
+                    logger.warning(f"version_dir: {version_dir}")
+                    # metadata_path = os.path.join(complexity_dir, version_dir, "metadata.json")
+                    metadata_path = self.path(complexity, version_dir).metadata
+                    logger.warning(f"metadata_path: {metadata_path}")
                     if os.path.exists(metadata_path):
+                        logger.warning(f"metadata_path exists: {metadata_path}")
                         with open(metadata_path, 'r') as f:
                             versions.append(json.load(f))
                 return versions
             except Exception as e:
+                raise Exception("Error getting local complexity versions")
                 logger.error(f"Error getting local complexity versions: {e}")
                 return []
         
         # S3 mode
-        s3_key = f"models/{complexity}"
+        s3_key = self.path(complexity).dir
         try:
             response = self.s3_client.list_objects_v2(Bucket=self.s3_bucket, Prefix=s3_key)
             if 'Contents' not in response:
@@ -371,7 +418,7 @@ s3://tu-bucket/models/
         Returns:
             Metadata dictionary or None if not found
         """
-        metadata_path = f"models/{complexity}/{version}/metadata.json"
+        metadata_path = self.path(complexity, version).metadata
         try:
             if self.env == "local":
                 if not os.path.exists(metadata_path):
