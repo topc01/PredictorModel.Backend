@@ -66,7 +66,7 @@ s3://tu-bucket/models/
 └── active_versions.json 
     """
 
-    complexities = [
+    __complexities = [
         "Baja",
         "Media",
         "Alta",
@@ -75,6 +75,7 @@ s3://tu-bucket/models/
         "Inte. Pediátrico",
         "Maternidad"
     ]
+    complexities = list(map(label, __complexities))
 
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files
