@@ -13,6 +13,38 @@ from ..utils.storage import storage_manager
 
 filename = "dataset.csv"
 
+def rellenar_complejidades_faltantes(df, lista_complejidades):
+    """
+    Asegura que cada semana tenga todas las complejidades.
+    Cuando falta una, crea una fila con TODOS los valores = 0,
+    excepto 'semana_año' y 'complejidad'.
+    """
+    semanas = df['semana_año'].unique()
+    columnas = df.columns.tolist()
+
+    filas_nuevas = []
+
+    for semana in semanas:
+        existentes = df[df['semana_año'] == semana]['complejidad'].str.lower().tolist()
+
+        for comp in lista_complejidades:
+            if comp.lower() not in existentes:
+
+                # Crear fila nueva con TODO = 0
+                fila = {col: 0 for col in columnas}
+
+                # Sobrescribir las columnas clave
+                fila['semana_año'] = semana
+                fila['complejidad'] = comp
+
+                filas_nuevas.append(fila)
+
+    if filas_nuevas:
+        df = pd.concat([df, pd.DataFrame(filas_nuevas)], ignore_index=True)
+
+    return df
+
+
 def get_season(month: int) -> str:
     """
     Obtiene la estación del año basada en el mes.
@@ -236,7 +268,37 @@ def preparar_datos_por_complejidad(df_original, complejidad_valor):
         'servicio ingreso (código)_UEMECLI4_lag1',
         'servicio ingreso (código)_UEMECLI5_lag1',
         'servicio ingreso (código)_UEMECLI6_lag1',
-        ...
+        'servicio ingreso (código)_UEMECLI7_lag1',
+        'servicio ingreso (código)_UEMEQ2ED_lag1',
+        'servicio ingreso (código)_UEMEQ4DE_lag1',
+        'servicio ingreso (código)_UEMEQCLI_lag1',
+        'servicio ingreso (código)_UEMEQX4A_lag1',
+        'servicio ingreso (código)_UEMEQX4B_lag1',
+        'servicio ingreso (código)_UEMEQX4C_lag1',
+        'servicio ingreso (código)_UEMEQX5A_lag1',
+        'servicio ingreso (código)_UEMEQX5B_lag1',
+        'servicio ingreso (código)_UEMEQX5C_lag1',
+        'servicio ingreso (código)_UEMULTI2_lag1',
+        'servicio ingreso (código)_UEOCLI10_lag1',
+        'servicio ingreso (código)_UEONCCLI_lag1',
+        'servicio ingreso (código)_UEONCLI8_lag1',
+        'servicio ingreso (código)_UEPENMAT_lag1',
+        'servicio ingreso (código)_UEINAD_lag1',
+        'servicio ingreso (código)_UEINAD4_lag1',
+        'servicio ingreso (código)_UERECUP6_lag1',
+        'servicio ingreso (código)_UEUNICOR_lag1',
+        'servicio ingreso (código)_UEINT8_lag1',
+       'servicio ingreso (código)_UEINTCLI_lag1',
+       'servicio ingreso (código)_UEINTM5B_lag1',
+       'servicio ingreso (código)_UEINTM5C_lag1',
+       'servicio ingreso (código)_UETRAME2_lag1',
+       'servicio ingreso (código)_UETRAMEN_lag1',
+       'servicio ingreso (código)_UENEONAT_lag1',
+       'servicio ingreso (código)_UEINMPED_lag1',
+       'servicio ingreso (código)_UEINSPED_lag1',
+       'servicio ingreso (código)_UEONCPED_lag1',
+       'servicio ingreso (código)_UEPEDCLI_lag1',
+       'servicio ingreso (código)_UEPEDIAT_lag1'
     ]
     semanal.drop(columns=cols_a_eliminar, errors='ignore', inplace=True)
 
@@ -295,5 +357,10 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
             print(f"[ERROR] Falló el procesamiento de {c}: {e}")
     
     df_final = pd.concat(dfs_todos, ignore_index=True).sort_values(['semana_año', 'complejidad'])
+    # 🔥 FIX: agregar complejidades faltantes en cada semana
+    df_final = rellenar_complejidades_faltantes(df_final, lista_complejidades=['Baja', 'Maternidad', 'Media', 'Alta', 'Neonatología', 'Pediatría', 'Inte. Pediátrico'])
+
+    # Reordenar y guardar
+    df_final = df_final.sort_values(['semana_año', 'complejidad']).reset_index(drop=True)
     storage_manager.save_csv(df_final, "dataset.csv")
     # df_final.to_csv("data/dataset.csv", index=False)
