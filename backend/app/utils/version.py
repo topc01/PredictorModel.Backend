@@ -202,50 +202,54 @@ s3://tu-bucket/models/
         obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=self.filename)
         return json.loads(obj['Body'].read())
 
-    def get_active_version_data(self, complexity: str):
-        versions = self.get_version_manager()
-        return versions.get(complexity, {})
+    def get_active_version_data(self, complexity: str) -> dict:
+        """Method to get raw active version data from JSON."""
+        return self._active_versions.get(complexity, {})
 
-    def get_active_model(self, complexity: str):
-        """
-        Get the currently active model for a complexity.
+    def get_latest_version(self, complexity: str) -> str:
+        versions = self.get_complexity_versions(complexity)
+        if not versions:
+            raise ValueError(f"No versions available for complexity: {complexity}")
         
-        If no active version is set, defaults to the latest version.
+        # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS)
+        sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
+        version = sorted_versions[0].get("version")
+        return version
+
+    def get_active_version(self, complexity: str) -> str:
+        """
+        Get the active version for a complexity.
+        
+        If no active version is set in active_versions.json, returns the latest version.
+        This is the main method to use for getting which version to use.
         
         Args:
             complexity: Model complexity
             
         Returns:
-            Loaded active model object
+            Version string (e.g., "v_2025-11-28_17-18-28")
             
         Raises:
             ValueError: If no versions exist for the complexity
-            FileNotFoundError: If the model file doesn't exist
         """
-        active_data = self.get_active_version_data(complexity)
-        version = active_data.get("version")
         
-        # If no active version, get the latest one
+        version = self._active_versions.get(complexity, {}).get("version")
+        
+        # If no active version set, get the latest one
         if not version:
             logger.info(f"No active version set for {complexity}, using latest version")
-            versions = self.get_complexity_versions(complexity)
-            
-            if not versions:
-                raise ValueError(f"No versions available for complexity: {complexity}")
-            
-            # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS or similar)
-            # Get the last one (most recent)
-            sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
-            version = sorted_versions[0].get("version")
+            version = self.get_latest_version(complexity)
             
             if not version:
-                raise ValueError(f"Could not determine latest version for complexity: {complexity}")
+                raise ValueError(f"No versions available for complexity: {complexity}")
             
             logger.info(f"Using latest version for {complexity}: {version}")
         else:
-            logger.info(f"Loading active model for {complexity}: {version}")
+            logger.info(f"Using active version for {complexity}: {version}")
         
-        return self.load_model(complexity, version)
+        return version
+
+  
 
     def set_active_version(self, complexity: str, version: str, user: str = "system"):
         versions = self.get_version_manager()
