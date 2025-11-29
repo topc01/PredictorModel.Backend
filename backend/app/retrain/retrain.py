@@ -12,14 +12,34 @@ from app.utils.version import version_manager
 from app.utils.storage import storage_manager
 
 def save_prophet_model(model, metrics, complexity, df_prophet):
+
+    if model is None:
+        raise ValueError("El modelo Prophet no puede ser None.")
+
+    if not isinstance(metrics, dict):
+        raise ValueError("Las métricas deben ser un diccionario.")
+
+    if df_prophet is None or df_prophet.empty:
+        raise ValueError("df_prophet está vacío o no es válido.")
+
+    if not isinstance(complexity, str) or not complexity.strip():
+        raise ValueError("El campo 'complexity' debe ser un string no vacío.")
+    
     version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     base_path = f"models/prophet/{complexity}/{version}"
     os.makedirs(base_path, exist_ok=True)
 
-    joblib.dump(model, f"{base_path}/model.pkl")
-
-    with open(f"{base_path}/metrics.json", "w") as f:
-        json.dump(metrics, f, indent=4)
+    # Guardar el modelo y las métricas
+    try:
+        joblib.dump(model, f"{base_path}/model.pkl")
+    except Exception as e:
+        raise IOError(f"Error saving model: {str(e)}")
+    
+    try:
+        with open(f"{base_path}/metrics.json", "w") as f:
+            json.dump(metrics, f, indent=4)
+    except Exception as e:
+        print(f"Error saving metrics: {str(e)}")
 
     metadata = {
         "version": version,
@@ -35,9 +55,16 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         "metrics": metrics
     }
 
-    version_manager.save_model(model, metadata)
-    with open(f"{base_path}/metadata.json", "w") as f:
-        json.dump(metadata, f, indent=4)
+    try:
+        version_manager.save_model(model, metadata)
+    except Exception as e:
+        raise IOError(f"Error saving model with version manager: {str(e)}")
+
+    try:
+        with open(f"{base_path}/metadata.json", "w") as f:
+            json.dump(metadata, f, indent=4)
+    except Exception as e:
+        raise IOError(f"Error saving metadata: {str(e)}")
 
     return {
         "version": version,
@@ -51,23 +78,39 @@ def load_data(complexity: str):
     df = storage_manager.load_csv("dataset.csv")
     # df = pd.read_csv(DATA_PATH)
 
+    if df is None or df.empty:
+        raise ValueError("El DataFrame cargado está vacío o es None.")
+
     if complexity == "Pediatria":
         complexity = "Pediatría"
     elif complexity == "Neonatologia":
         complexity = "Neonatología"
+    elif complexity == "Inte. Pediatrico":
+        complexity = "Inte. Pediátrico"
+
     df = df[df["complejidad"] == complexity]
-    print("Data loaded for retraining.")
+
+    if df.empty:
+        raise ValueError(f"No hay datos disponibles para la complejidad: {complexity}")
+    
     return df
 
 def prepare_data_prophet(df: pd.DataFrame):
     """Function to prepare data for Prophet model.
     """
+    if df is None or df.empty:
+        raise ValueError("El DataFrame de entrada está vacío o es None.")
+    
+    df = df.copy()
     
     df['ds'] = pd.to_datetime(df['semana_año'] + '-1', format='%Y-%W-%w', errors='coerce')
 
     df = df.rename(columns={'demanda_pacientes': 'y'})
 
     df = df[['ds', 'y']].sort_values('ds')
+
+    if df.empty:
+        raise ValueError("Después de procesar y limpiar los datos, el DataFrame quedó vacío.")
     return df
 
 def obtain_metrics_prophet(y_true, y_pred):
@@ -88,7 +131,6 @@ def retrain_prophet_model(complexity: str):
     """
     df = load_data(complexity)
     df_prophet = prepare_data_prophet(df)
-    print(df_prophet.head())
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=False,
@@ -119,7 +161,6 @@ def retrain_prophet_model(complexity: str):
         "RMSE": float(rmse),
         "R2": float(r2)
     }
-    print("metrics:", metrics)
     
     result = save_prophet_model(model, metrics, complexity, df_prophet)
 
@@ -138,14 +179,13 @@ def retrain_prophet_model(complexity: str):
 def retrain_model():
     """"Function to retrain the model.
     """
-    print("Retraining model...")
-    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria"]:
-    # for e in ["Baja"]:
+    print("Retraining models...")
+    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "Inte. Pediatrico"]:
         retrain_prophet_model(complexity=e)
+    print("Models retrained.")
     pass
 
 def get_prophet_models(complexity: str):
-    print(f"Getting Prophet models for complexity: {complexity}")
     """
     Returns all saved Prophet model versions for a given complexity level.
     """
@@ -188,8 +228,6 @@ def get_prophet_models(complexity: str):
             })
     except Exception as e:
         print("Error loading models:", str(e))
-    
-         
 
     return {
         "complexity": complexity,
