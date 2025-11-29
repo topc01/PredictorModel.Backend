@@ -53,13 +53,17 @@ class PipelineProcessResponse(BaseModel):
                     "Baja": "Procesada exitosamente",
                     "Media": "Procesada exitosamente",
                     "Neonatología": "Datos insuficientes",
-                    "Pediatría": "Procesada exitosamente"
+                    "Pediatría": "Procesada exitosamente",
+                    "Inte. Pediátrico": "Procesada exitosamente",
+                    "Maternidad": "Procesada exitosamente"
                 },
                 "archivos_generados": {
                     "Alta": "./data/Alta.csv",
                     "Baja": "./data/Baja.csv",
                     "Media": "./data/Media.csv",
-                    "Pediatría": "./data/Pediatría.csv"
+                    "Pediatría": "./data/Pediatría.csv",
+                    "Inte. Pediátrico": "./data/IntePediátrico.csv",
+                    "Maternidad": "./data/Maternidad.csv"
                 },
                 "estadisticas": {
                     "Alta": {"filas": 120, "columnas": 18},

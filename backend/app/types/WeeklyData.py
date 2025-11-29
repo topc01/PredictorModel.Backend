@@ -34,6 +34,16 @@ class WeeklyData(BaseModel):
         alias='Pediatría',
         description="Datos de pediatría"
     )
+    intepedriatrico: WeeklyComplexityData = Field(
+        ..., 
+        alias='Inte. Pediátrico',
+        description="Datos de inte. pediátrico"
+    )
+    maternidad: WeeklyComplexityData = Field(
+        ..., 
+        alias='Maternidad',
+        description="Datos de maternidad"
+    )
     
     class Config:
         populate_by_name = True

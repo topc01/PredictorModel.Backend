@@ -109,6 +109,99 @@ class StorageManager:
             raise FileNotFoundError(f"S3 object not found: s3://{self.s3_bucket}/{s3_key}")
         except FileNotFoundError:
             raise FileNotFoundError(f"Local file not found: {os.path.join(self.base_dir, filename)}")
+        
+
+    def load_prophet_model(self, complexity: str, version: str):
+        """
+        Load a Prophet model (.pkl) from S3 or local storage.
+        
+        Args:
+            complexity: Model complexity (e.g., 'Baja')
+            version: Model version folder (e.g., 'v_2025-11-28_22-53-29')
+        
+        Returns:
+            Loaded Prophet model object
+        """
+        import joblib
+        import tempfile
+
+        model_key = f"models/prophet/{complexity}/{version}/model.pkl"
+
+        if self.env == "local":
+            local_path = os.path.join("models", "prophet", complexity, version, "model.pkl")
+            if not os.path.exists(local_path):
+                raise FileNotFoundError(f"Model file not found: {local_path}")
+            return joblib.load(local_path)
+
+        # === S3 MODE ===
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pkl")
+        local_path = temp_file.name
+        temp_file.close()  # importante: cerrar para poder escribir desde boto3
+
+        try:
+            self.s3_client.download_file(self.s3_bucket, model_key, local_path)
+        except self.s3_client.exceptions.NoSuchKey:
+            raise FileNotFoundError(f"S3 model not found: s3://{self.s3_bucket}/{model_key}")
+        except Exception as e:
+            logger.error(f"Error downloading model from S3: {str(e)}")
+            raise e
+
+        try:
+            model = joblib.load(local_path)
+        except Exception as e:
+            logger.error(f"Error loading Prophet model: {str(e)}")
+            raise e
+
+        return model
+    
+
+    def load_prophet_metrics(self, complexity: str, version: str) -> dict:
+        """
+        Load the metrics.json file for a Prophet model version from S3 or local.
+        
+        Args:
+            complexity: Model complexity (e.g., 'Baja', 'Neonatología')
+            version: Version string (e.g., 'v_2025-11-28_22-59-25')
+        
+        Returns:
+            dict with model metrics
+        
+        Raises:
+            FileNotFoundError if metrics.json is not found
+        """
+        import json
+        import tempfile
+        
+        metrics_key = f"models/prophet/{complexity}/{version}/metrics.json"
+
+        # === LOCAL MODE ===
+        if self.env == "local":
+            local_path = os.path.join("models", "prophet", complexity, version, "metrics.json")
+            if not os.path.exists(local_path):
+                raise FileNotFoundError(f"Metrics file not found: {local_path}")
+            with open(local_path, "r") as f:
+                return json.load(f)
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        local_path = temp_file.name
+        temp_file.close()
+
+        try:
+            self.s3_client.download_file(self.s3_bucket, metrics_key, local_path)
+        except self.s3_client.exceptions.NoSuchKey:
+            raise FileNotFoundError(f"S3 metrics file not found: s3://{self.s3_bucket}/{metrics_key}")
+        except Exception as e:
+            logger.error(f"Error downloading metrics from S3: {str(e)}")
+            raise e
+
+        try:
+            with open(local_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading metrics JSON: {str(e)}")
+            raise e
+
+
 
     
     def exists(self, filename: str) -> bool:

@@ -87,6 +87,8 @@ def load_data(complexity: str):
         complexity = "Neonatología"
     elif complexity == "Inte. Pediatrico":
         complexity = "Inte. Pediátrico"
+    elif complexity == "IntePediatrico":
+        complexity = "Inte. Pediátrico"
 
     df = df[df["complejidad"] == complexity]
 
@@ -180,7 +182,7 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining models...")
-    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "Inte. Pediatrico"]:
+    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "IntePediatrico"]:
         retrain_prophet_model(complexity=e)
     print("Models retrained.")
     pass
