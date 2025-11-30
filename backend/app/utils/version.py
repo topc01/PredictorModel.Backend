@@ -69,16 +69,8 @@ s3://tu-bucket/models/
 └── active_versions.json 
     """
 
-    __complexities = [
-        "Baja",
-        "Media",
-        "Alta",
-        "Neonatología",
-        "Pediatría",
-        "Inte. Pediátrico",
-        "Maternidad"
-    ]
-    complexities = list(map(label, __complexities))
+    # Get all valid complexity labels from the centralized mapper
+    complexities = ComplexityMapper.get_all_labels()
 
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files

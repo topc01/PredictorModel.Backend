@@ -10,6 +10,7 @@ import numpy as np
 from typing import Dict, Optional, BinaryIO
 
 from ..utils.storage import storage_manager
+from ..utils.complexities import ComplexityMapper
 
 filename = "dataset.csv"
 
@@ -313,8 +314,8 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
     # Limpiar datos iniciales
     df = limpiar_excel_inicial(archivo)
     
-    # Procesar cada complejidad
-    complejidades = ['Baja', 'Maternidad', 'Media', 'Alta', 'Neonatología', 'Pediatría', 'Inte. Pediátrico']
+    # Procesar cada complejidad (using centralized mapper)
+    complejidades = ComplexityMapper.get_all_real_names()
 
     dfs_todos = []
 
@@ -328,7 +329,7 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
     
     df_final = pd.concat(dfs_todos, ignore_index=True).sort_values(['semana_año', 'complejidad'])
     # 🔥 FIX: agregar complejidades faltantes en cada semana
-    df_final = rellenar_complejidades_faltantes(df_final, lista_complejidades=['Baja', 'Maternidad', 'Media', 'Alta', 'Neonatología', 'Pediatría', 'Inte. Pediátrico'])
+    df_final = rellenar_complejidades_faltantes(df_final, lista_complejidades=ComplexityMapper.get_all_real_names())
 
     # Reordenar y guardar
     df_final = df_final.sort_values(['semana_año', 'complejidad']).reset_index(drop=True)

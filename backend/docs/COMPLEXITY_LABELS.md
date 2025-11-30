@@ -63,12 +63,12 @@ GET /models/complexities
 
 ### ComplexityMapper
 
-La clase `ComplexityMapper` en `app/utils/version.py` centraliza todo el mapeo de complejidades.
+La clase `ComplexityMapper` en `app/utils/complexities.py` centraliza todo el mapeo de complejidades.
 
 #### Convertir Label → Nombre Real
 
 ```python
-from app.utils.version import ComplexityMapper
+from app.utils.complexities import ComplexityMapper
 
 # Convertir label de API a nombre real
 real_name = ComplexityMapper.to_real_name("Neonatologia")
@@ -78,6 +78,8 @@ real_name = ComplexityMapper.to_real_name("Neonatologia")
 #### Convertir Nombre Real → Label
 
 ```python
+from app.utils.complexities import ComplexityMapper
+
 # Convertir nombre real a label de API
 label = ComplexityMapper.to_label("Neonatología")
 # Resultado: "Neonatologia"
@@ -86,6 +88,8 @@ label = ComplexityMapper.to_label("Neonatología")
 #### Parsear Input de API (case-insensitive)
 
 ```python
+from app.utils.complexities import ComplexityMapper
+
 # Acepta input en minúsculas de la API
 real_name = ComplexityMapper.parse_from_api("neonatologia")
 # Resultado: "Neonatología"
@@ -97,6 +101,8 @@ real_name = ComplexityMapper.parse_from_api("alta")
 #### Validación
 
 ```python
+from app.utils.complexities import ComplexityMapper
+
 # Validar si un label es válido
 is_valid = ComplexityMapper.is_valid_label("Neonatologia")  # True
 is_valid = ComplexityMapper.is_valid_label("InvalidLabel")  # False
@@ -108,6 +114,8 @@ is_valid = ComplexityMapper.is_valid_real_name("Neonatología")  # True
 #### Obtener Todas las Complejidades
 
 ```python
+from app.utils.complexities import ComplexityMapper
+
 # Obtener todos los labels
 labels = ComplexityMapper.get_all_labels()
 # ['Baja', 'Media', 'Alta', 'Neonatologia', 'Pediatria', 'IntePediatrico', 'Maternidad']
@@ -183,7 +191,7 @@ complexity = complexity.replace("Neonatologia", "Neonatología")
 ### Ahora (centralizado)
 
 ```python
-from app.utils.version import ComplexityMapper
+from app.utils.complexities import ComplexityMapper
 
 # En predict.py
 real_complexity = ComplexityMapper.parse_from_api(complexity)
@@ -202,7 +210,7 @@ if ComplexityMapper.is_valid_label(complexity):
 
 ```python
 from fastapi import APIRouter, HTTPException
-from app.utils.version import ComplexityMapper
+from app.utils.complexities import ComplexityMapper
 
 @router.get("/predict/{complexity}")
 async def predict_complexity(complexity: str):
@@ -220,7 +228,7 @@ async def predict_complexity(complexity: str):
 ### Reentrenamiento de Modelos
 
 ```python
-from app.utils.version import ComplexityMapper
+from app.utils.complexities import ComplexityMapper
 
 def retrain_all_models():
     # Iterar sobre todas las complejidades
@@ -232,7 +240,7 @@ def retrain_all_models():
 ### Cargar Datos desde CSV
 
 ```python
-from app.utils.version import ComplexityMapper
+from app.utils.complexities import ComplexityMapper
 
 def load_data(complexity: str):
     # Convertir label a nombre real si es necesario

@@ -108,7 +108,10 @@ async def retrain_endpoint():
 async def get_all_models():
     try:
         from app.retrain.retrain import get_prophet_models
-        complexities = ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "IntePediatrico"]
+        from app.utils.complexities import ComplexityMapper
+        
+        # Get all complexity labels from the centralized mapper
+        complexities = ComplexityMapper.get_all_labels()
         models = []
         for complexity in complexities:
             complexity_models = get_prophet_models(complexity)
