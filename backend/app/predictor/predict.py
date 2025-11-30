@@ -102,6 +102,8 @@ def predict(complexity: str):
     df = data_total[data_total["complejidad"] == complexity]
     feature_names = version_manager.get_feature_names()
 
+    complexity = ComplexityMapper.to_label(complexity)
+
     try:
         np.random.seed(42)
         model = version_manager.get_model(complexity)
