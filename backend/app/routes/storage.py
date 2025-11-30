@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from pydantic import BaseModel
+from typing import Optional
 import os
 from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
 
@@ -154,3 +156,48 @@ async def storage_health_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=response
         )
+
+class WeekDeleteRequest(BaseModel):
+    filename: str = "dataset.csv"
+    semana_año: str = "2025-31"
+    column_name: Optional[str] = "semana_año"
+
+@router.delete(
+    "/storage/week",
+    status_code=status.HTTP_200_OK,
+    summary="Eliminar una semana de un CSV",
+    description="Elimina las filas que correspondan a `semana_año` dentro del CSV indicado (por defecto `dataset.csv`).",
+)
+async def delete_week(payload: WeekDeleteRequest = Body(...)):
+    try:
+        removed = storage_manager.remove_week_from_file(payload.filename, payload.semana_año, payload.column_name)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"message": str(e)})
+
+    return {"filename": payload.filename, "semana_año": payload.semana_año, "rows_removed": removed}
+
+class LastRowsDeleteRequest(BaseModel):
+    filename: str = "dataset.csv"
+    n_rows: int = 1
+
+@router.delete(
+    "/storage/last-rows",
+    status_code=status.HTTP_200_OK,
+    summary="Eliminar las últimas n filas de un CSV",
+    description="Elimina las últimas `n_rows` filas del CSV indicado (por defecto `dataset.csv`). CSV se encuentra ordenado según semana_año.",
+)
+async def delete_last_rows(payload: LastRowsDeleteRequest = Body(...)):
+    try:
+        removed = storage_manager.remove_last_row_from_file(payload.filename, payload.n_rows)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"message": str(e)})
+
+    return {"filename": payload.filename, "rows_removed": removed}

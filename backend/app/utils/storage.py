@@ -157,6 +157,79 @@ class StorageManager:
                 results[filename] = path
         return results
 
+    def remove_week_from_file(self, filename: str, semana_año: str, column_name: str = "semana_año") -> int:
+        """
+        Remove rows corresponding to a specific week from a CSV file.
+        
+        Args:
+            filename: Name of the CSV file
+            semana_año: Week identifier to remove (e.g., '2025-31')
+            column_name: Name of the column containing week identifiers
+        Returns:
+            Number of rows removed
+        """
+        df = self.load_csv(filename)
+        if column_name not in df.columns:
+            raise KeyError(f"Column '{column_name}' not found in {filename}")
+        
+        mask = df[column_name] == semana_año
+        removed = int(mask.sum())
+        if removed == 0:
+            return 0
+        df_filtered = df[~mask].reset_index(drop=True)
+        
+        self.save_csv(df_filtered, filename)
+        return removed
+
+    def remove_last_row_from_file(self, filename: str, n: int = 1) -> int:
+        """
+        Remove the last n rows from a CSV file.
+        
+        Args:
+            filename: Name of the CSV file
+            n: Number of rows to remove from the end
+        Returns:
+            Number of rows removed
+        """
+        df = self.load_csv(filename)
+        if df.empty:
+            return 0
+
+        # Antes de truncar, ordenar por columna de semana ('semana_año') si existe
+        if 'semana_año' in df.columns:
+            try:
+                parts = df['semana_año'].astype(str).str.split('-')
+                year = parts.str[0].astype(int)
+                week = parts.str[1].astype(int)
+                df = df.assign(_sort_year=year, _sort_week=week)
+                df = df.sort_values(['_sort_year', '_sort_week']).drop(columns=['_sort_year', '_sort_week']).reset_index(drop=True)
+            except Exception:
+                df = df.sort_values('semana_año').reset_index(drop=True)
+
+        else:
+            date_cols = ['Fecha ingreso', 'fecha ingreso completa', 'fecha_ingreso_completa']
+            chosen = None
+            for c in date_cols:
+                if c in df.columns:
+                    chosen = c
+                    break
+
+            if chosen:
+                try:
+                    df[chosen] = pd.to_datetime(df[chosen], errors='coerce')
+                    df = df.sort_values(chosen).reset_index(drop=True)
+                except Exception:
+                    # si falla la conversión, no ordenar
+                    pass
+
+        n = min(n, len(df))
+        if n == 0:
+            return 0
+
+        new_df = df.iloc[:-n].reset_index(drop=True)
+        removed = len(df) - len(new_df)
+        self.save_csv(new_df, filename)
+        return removed
 
 # Global storage manager instance
 # Can be configured via environment variables
@@ -218,7 +291,6 @@ def check_bucket_access(bucket_name: str) -> Dict[str, any]:
             'exists': None,
             'error': f'Unexpected error: {str(e)}'
         }
-
 
 def get_bucket_info(bucket_name: str) -> Optional[Dict]:
     """
