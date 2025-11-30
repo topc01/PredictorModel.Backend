@@ -3,12 +3,15 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import prophet
-import joblib
+import logging
 from ..utils.storage import storage_manager
 from ..utils.version import version_manager
 from ..utils.complexities import ComplexityMapper
 
 import os
+
+logger = logging.getLogger(__name__)
+
 
 def without_tilde(string: str) -> str:
     return string.replace('í', 'i')
@@ -110,7 +113,16 @@ def predict(complexity: str):
     if not ComplexityMapper.is_valid_label(complexity):
         raise Exception(f"Invalid complexity: {complexity}")
 
-    metrics_models = version_manager.get_version_metadata(complexity, version)
+    # Get metrics: use version metadata if available, otherwise use base metrics
+    if version:
+        metrics_models = version_manager.get_version_metrics(complexity, version)
+    else:
+        logger.info(f"No version available for {complexity}, using base metrics")
+        metrics_models = version_manager.get_base_metrics(complexity)
+        if not metrics_models:
+            logger.warning(f"No metrics found for {complexity}")
+            metrics_models = {}
+    
     result = predict_prophet_model(model, periods=1)
     prediccion = result.yhat.values[-1]
     lower = result.yhat_lower.values[-1]
