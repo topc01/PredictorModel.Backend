@@ -6,7 +6,7 @@ import prophet
 import joblib
 from ..utils.storage import storage_manager
 from ..utils.version import version_manager
-from ..retrain.retrain import get_prophet_models
+from ..utils.complexities import ComplexityMapper
 
 import os
 
@@ -86,13 +86,12 @@ def predict_random_forest(model, X_pred):
     }
 
 
-def predict(complexity: str, version_to_load: str = None):
+def predict(complexity: str):
     """
     Realiza una predicción para una complejidad específica.
     
     Args:
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
-        version_to_load: Versión del modelo a cargar (opcional)
     """
 
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -104,86 +103,20 @@ def predict(complexity: str, version_to_load: str = None):
     feature_names = joblib.load(FEATURE_PATH)
 
     try:
-        # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
-        # model_path = f"models/{complexity}.pkl"
         np.random.seed(42)
-        # model = joblib.load(model_path)
         model = version_manager.get_model(complexity)
-        
-        #np.random.seed(42)
-        #Manejo de nombres con tildes
-        #if complexity == "Pediatría":
-         #   complexity_to_load = "Pediatria"
-        #elif complexity == "Neonatología":
-         #   complexity_to_load = "Neonatologia"
-        #else:
-         #   complexity_to_load = complexity
-        ###
-        # Para seleccionar el modelo con mejor rendimiento
-        #if version_to_load == None:
-        #    version = choose_best_model(get_prophet_models(complexity=complexity_to_load))["version"]
-        #else:
-         #   version = version_to_load
-        ######
-        #model = storage_manager.load_prophet_model(complexity_to_load, version)
+        version = version_manager.get_active_version(complexity)
     except Exception as e:
         raise Exception(f"error {e}")
 
-    try:
-        metrics_models = storage_manager.load_prophet_metrics(complexity_to_load, version)
-        print(f"metricas del modelo: {metrics_models}")
-    except Exception as e:
-        raise Exception(f"error {e}")
 
-    ## Realizar la predicción
-    if complexity == "Baja":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Maternidad":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Media":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Alta":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Neonatología":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Pediatría":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Inte. Pediátrico" or complexity == "IntePediatrico":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    raise Exception(f"Complejidad {complexity} no encontrada.")
+    if not ComplexityMapper.is_valid_label(complexity):
+        raise Exception(f"Invalid complexity: {complexity}")
 
+    metrics_models = version_manager.get_version_metadata(complexity, version)
+    result = predict_prophet_model(model, periods=1)
+    prediccion = result.yhat.values[-1]
+    lower = result.yhat_lower.values[-1]
+    upper = result.yhat_upper.values[-1]    
+    response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+    return response
