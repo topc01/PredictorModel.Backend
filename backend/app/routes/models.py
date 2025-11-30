@@ -253,7 +253,7 @@ async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMap
         version = version_manager.get_active_version(complexity)
         
         # Get metadata for this version
-        metadata = version_manager.get_version_metadata(complexity, version)
+        metadata = version_manager.get_version_metrics(complexity, version)
         
         # Get active version data to check if it's explicitly set
         active_data = version_manager.get_active_version_data(complexity)
@@ -298,9 +298,9 @@ async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMap
     **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
-async def get_version_details(complexity: str = Depends(ComplexityMapper.is_valid_label), version: str = None):
+async def get_version_details(complexity: str, version: str):
     """Get metadata for a specific version."""
-    metadata = version_manager.get_version_metadata(complexity, version)
+    metadata = version_manager.get_version_metrics(complexity, version)
     if not metadata:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -370,7 +370,7 @@ async def activate_model_version(
         )
     
     # Verify version exists
-    metadata = version_manager.get_version_metadata(complexity, version)
+    metadata = version_manager.get_version_metrics(complexity, version)
     if not metadata:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -429,7 +429,7 @@ async def activate_models_batch(
     
     # Verify all versions exist
     for complexity, version in versions_dict.items():
-        metadata = version_manager.get_version_metadata(complexity, version)
+        metadata = version_manager.get_version_metrics(complexity, version)
         if not metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

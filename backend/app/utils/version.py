@@ -460,7 +460,7 @@ s3://tu-bucket/models/
             logger.error(f"Error getting S3 complexity versions: {e}")
             return []
 
-    def get_version_metadata(self, complexity: str, version: str) -> Optional[Dict]:
+    def get_version_metrics(self, complexity: str, version: str) -> Optional[Dict]:
         """
         Get metadata for a specific version.
         
@@ -477,11 +477,11 @@ s3://tu-bucket/models/
                 if not os.path.exists(metadata_path):
                     return None
                 with open(metadata_path, 'r') as f:
-                    return json.load(f)
+                    return json.load(f).get('metrics')
             
             # S3 mode
             metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metadata_path)
-            return json.loads(metadata['Body'].read())
+            return json.loads(metadata['Body'].read()).get('metrics')
         except FileNotFoundError:
             return None
         except Exception as e:
