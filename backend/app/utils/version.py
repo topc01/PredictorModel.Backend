@@ -83,7 +83,7 @@ s3://tu-bucket/models/
             base_dir = "models"
             _complexity = None
             _version = None
-            def __call__(self_, complexity: str, version: Optional[str] = None):
+            def __call__(self_, complexity: Optional[str] = None, version: Optional[str] = None):
                 self_._complexity = complexity
                 self_._version = version
                 return self_
@@ -290,6 +290,41 @@ s3://tu-bucket/models/
         logger.info(f"Loading base model for {complexity} from: {base_model_path}")
         return self._load_model_path(base_model_path)
     
+    def get_base_metrics(self, complexity: str) -> Optional[Dict]:
+        """
+        Load base metrics for a given complexity.
+        
+        This is used as a fallback when no versioned models exist.
+        The base metrics are stored at: models/results/{complexity}.json
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Dictionary with metrics or None if not found
+        """
+        metrics_path = self.path(complexity).base_metrics_file
+        logger.info(f"Loading base metrics for {complexity} from: {metrics_path}")
+        
+        try:
+            if self.env == "local":
+                if not os.path.exists(metrics_path):
+                    logger.warning(f"Base metrics file not found: {metrics_path}")
+                    return None
+                with open(metrics_path, 'r') as f:
+                    return json.load(f)
+            
+            # S3 mode
+            try:
+                obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metrics_path)
+                return json.loads(obj['Body'].read())
+            except self.s3_client.exceptions.NoSuchKey:
+                logger.warning(f"Base metrics not found in S3: s3://{self.s3_bucket}/{metrics_path}")
+                return None
+        except Exception as e:
+            logger.error(f"Error loading base metrics: {e}")
+            return None
+
     def get_latest_version(self, complexity: str) -> Optional[str]:
         logger.info(f"Using latest version for {complexity}")
         versions = self.get_complexity_versions(complexity)
