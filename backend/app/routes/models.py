@@ -15,9 +15,29 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
     summary="Get all available complexities",
     description="""
-    Get a list of all available complexity levels with their API labels and real names.
+    Obtiene la lista completa de complejidades disponibles con sus labels API y nombres reales.
     
-    Use the API labels (lowercase) in your API requests.
+    **Uso:** Utiliza los **labels API** (en minúsculas, sin tildes) en tus requests a otros endpoints.
+    
+    **Ejemplo de respuesta:**
+    ```json
+    {
+      "complexities": [
+        {
+          "label": "baja",
+          "real_name": "Baja",
+          "description": "Use 'baja' in API requests"
+        },
+        {
+          "label": "neonatologia",
+          "real_name": "Neonatología",
+          "description": "Use 'neonatologia' in API requests"
+        }
+      ]
+    }
+    ```
+    
+    **Fuente:** Todos los valores provienen de `ComplexityMapper` en `app/utils/complexities.py`.
     """,
     responses={
         200: {
@@ -62,7 +82,12 @@ async def get_complexities():
     status_code=status.HTTP_200_OK,
     summary="Get all models versions",
     description="""
-    Endpoint to retrieve all models versions.
+    Obtiene todas las versiones de modelos para **todas las complejidades**.
+    
+    **Complejidades incluidas:** Todas las definidas en `ComplexityMapper`:
+    - Baja, Media, Alta, Neonatología, Pediatría, Inte. Pediátrico, Maternidad
+    
+    **No requiere parámetros.**
     """,
     responses={
         200: {
@@ -109,7 +134,17 @@ async def get_all_models():
     status_code=status.HTTP_200_OK,
     summary="Get models versions by complexity",
     description="""
-    Endpoint to retrieve models versions by complexity.
+    Obtiene las versiones de modelos para una complejidad específica.
+    
+    **Parámetro `complexity`:** Label API de la complejidad (case-insensitive)
+    
+    **Valores válidos:** `baja`, `media`, `alta`, `neonatologia`, `pediatria`, `intepediatrico`, `maternidad`
+    
+    **Ejemplos:**
+    - `GET /models/versions/alta`
+    - `GET /models/versions/neonatologia`
+    
+    **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
     responses={
         200: {
@@ -156,7 +191,14 @@ async def get_models_by_complexity(complexity: str = Depends(ComplexityMapper.is
     status_code=status.HTTP_200_OK,
     summary="Get all active model versions",
     description="""
-    Get the complete configuration of active model versions for all complexities.
+    Obtiene la configuración completa de versiones activas para **todas las complejidades**.
+    
+    **Complejidades incluidas:** Todas las definidas en `ComplexityMapper`:
+    - Baja, Media, Alta, Neonatología, Pediatría, Inte. Pediátrico, Maternidad
+    
+    **Retorna:** Un diccionario con los nombres reales (con tildes) como keys.
+    
+    **No requiere parámetros.**
     """,
     responses={
         200: {
@@ -189,9 +231,19 @@ async def get_active_models():
     status_code=status.HTTP_200_OK,
     summary="Get active version for a specific complexity",
     description="""
-    Get the active version information for a specific complexity.
+    Obtiene la versión activa para una complejidad específica.
     
-    If no active version is configured, automatically returns the latest version.
+    **Comportamiento:** Si no hay versión activa configurada, retorna automáticamente la versión más reciente.
+    
+    **Parámetro `complexity`:** Label API de la complejidad (case-insensitive)
+    
+    **Valores válidos:** `baja`, `media`, `alta`, `neonatologia`, `pediatria`, `intepediatrico`, `maternidad`
+    
+    **Ejemplos:**
+    - `GET /models/alta/active`
+    - `GET /models/neonatologia/active`
+    
+    **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
 async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
@@ -232,7 +284,18 @@ async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMap
     status_code=status.HTTP_200_OK,
     summary="Get metadata for a specific version",
     description="""
-    Get detailed metadata for a specific model version.
+    Obtiene los metadatos detallados de una versión específica de modelo.
+    
+    **Parámetros:**
+    - `complexity`: Label API de la complejidad (case-insensitive)
+    - `version_id`: Identificador de la versión (ej: `v1_2024-11-28_01-00-00`)
+    
+    **Valores válidos para complexity:** `baja`, `media`, `alta`, `neonatologia`, `pediatria`, `intepediatrico`, `maternidad`
+    
+    **Ejemplo:**
+    - `GET /models/alta/versions/v1_2024-11-28_01-00-00`
+    
+    **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
 async def get_version_details(complexity: str = Depends(ComplexityMapper.is_valid_label), version: str = None):
@@ -251,7 +314,24 @@ async def get_version_details(complexity: str = Depends(ComplexityMapper.is_vali
     status_code=status.HTTP_200_OK,
     summary="Activate model version",
     description="""
-    Endpoint to activate a model version for a specific complexity.
+    Activa una versión específica de modelo para una complejidad.
+    
+    **Parámetro `complexity`:** Label API de la complejidad (case-insensitive)
+    
+    **Valores válidos:** `baja`, `media`, `alta`, `neonatologia`, `pediatria`, `intepediatrico`, `maternidad`
+    
+    **Body:**
+    ```json
+    {
+      "version": "v1_2024-11-28_01-00-00",
+      "user": "admin@example.com"
+    }
+    ```
+    
+    **Ejemplo:**
+    - `PUT /models/alta/active`
+    
+    **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
     responses={
         200: {
@@ -309,8 +389,23 @@ async def activate_model_version(
     status_code=status.HTTP_200_OK,
     summary="Activate multiple model versions",
     description="""
-    Activate multiple model versions at once.
-    Provide a dictionary mapping complexity to version.
+    Activa múltiples versiones de modelos a la vez.
+    
+    **IMPORTANTE:** Este endpoint usa **nombres reales** (con tildes) en el body, no labels API.
+    
+    **Body:**
+    ```json
+    {
+      "versions": {
+        "Alta": "v1_2024-11-28_01-00-00",
+        "Baja": "v2_2024-11-27_10-00-00",
+        "Neonatología": "v1_2024-11-27_15-00-00"
+      },
+      "user": "admin@example.com"
+    }
+    ```
+    
+    **Nota:** Usa `ComplexityMapper.get_all_real_names()` para obtener los nombres correctos.
     """,
 )
 async def activate_models_batch(

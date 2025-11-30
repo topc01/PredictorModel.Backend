@@ -15,14 +15,21 @@ router = APIRouter(
   summary="Realizar predicción", 
   description="""Realiza una predicción para una complejidad específica.
   
-  Complejidades disponibles (usar en minúsculas):
-    - baja
-    - media
-    - alta
-    - neonatologia
-    - pediatria
-    - intepediatrico
-    - maternidad
+  **Complejidades disponibles** (case-insensitive):
+  
+  | Label API | Nombre Real | Descripción |
+  |-----------|-------------|-------------|
+  | `baja` | Baja | Complejidad baja |
+  | `media` | Media | Complejidad media |
+  | `alta` | Alta | Complejidad alta |
+  | `neonatologia` | Neonatología | Neonatología |
+  | `pediatria` | Pediatría | Pediatría |
+  | `intepediatrico` | Inte. Pediátrico | Intermedio Pediátrico |
+  | `maternidad` | Maternidad | Maternidad |
+  
+  **Nota:** El API acepta mayúsculas y minúsculas (`alta`, `Alta`, `ALTA`), pero se recomienda usar minúsculas.
+  
+  **Validación:** Este endpoint usa `ComplexityMapper` para validar automáticamente el parámetro de complejidad.
   """,
   responses={
     200: {
