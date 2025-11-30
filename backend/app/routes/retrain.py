@@ -61,6 +61,56 @@ async def retrain_endpoint():
         )
 
 
+@router.post(
+    "",
+    status_code=status.HTTP_200_OK,
+    summary="Retrain the model",
+    description="""
+    Endpoint to trigger model retraining.
+    """,
+    responses={
+        200: {
+            "description": "Model retraining initiated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "retraining_started",
+                        "message": "Model retraining has been initiated."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Error initiating model retraining",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "error",
+                        "message": "Failed to initiate model retraining."
+                    }
+                }
+            }
+        }
+    },
+)
+async def retrain_endpoint():
+    try:
+        from app.retrain import retrain_model
+        retrain_model()
+        return {
+            "status": "retraining_started",
+            "message": "Model retraining has been initiated."
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "status": "error",
+                "message": "Failed to initiate model retraining."
+            }
+        )
+
+
 @router.get(
     "/all_models",
     status_code=status.HTTP_200_OK,
