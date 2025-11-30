@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from app.predictor import predict
 from app.utils.version import ComplexityMapper
 
@@ -46,7 +46,7 @@ router = APIRouter(
     }
   }
 )
-async def predict_complexity(complexity: str):
+async def predict_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
     """
     Realiza una predicción para una complejidad específica.
     
