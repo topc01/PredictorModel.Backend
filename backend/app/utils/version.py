@@ -271,16 +271,17 @@ s3://tu-bucket/models/
         return self._load_model_path(base_model_path)
     
     def get_latest_version(self, complexity: str) -> Optional[str]:
+        logger.info(f"Using latest version for {complexity}")
         versions = self.get_complexity_versions(complexity)
         if not versions:
-            raise ValueError(f"No versions available for complexity: {complexity}")
+            return None
         
         # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS)
         sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
         version = sorted_versions[0].get("version")
         return version
 
-    def get_active_version(self, complexity: str) -> str:
+    def get_active_version(self, complexity: str) -> Optional[str]:
         """
         Get the active version for a complexity.
         
@@ -301,15 +302,9 @@ s3://tu-bucket/models/
         
         # If no active version set, get the latest one
         if not version:
-            logger.info(f"No active version set for {complexity}, using latest version")
-            version = self.get_latest_version(complexity)
+            return self.get_latest_version(complexity)
             
-            if not version:
-                raise ValueError(f"No versions available for complexity: {complexity}")
-            
-            logger.info(f"Using latest version for {complexity}: {version}")
-        else:
-            logger.info(f"Using active version for {complexity}: {version}")
+        logger.info(f"Using active version for {complexity}: {version}")
         
         return version
 
@@ -327,6 +322,8 @@ s3://tu-bucket/models/
             Loaded model object
         """
         version = self.get_active_version(complexity)
+        if not version:
+            return self.get_base_model(complexity)
         return self._load_model(complexity, version)
 
     def set_active_version(self, complexity: str, version: str, user: str = "system") -> None:
