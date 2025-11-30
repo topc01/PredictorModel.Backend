@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
 
 from app.utils.version import version_manager, ComplexityMapper
 
@@ -183,7 +183,9 @@ async def get_all_models():
         }
     },
 )
-async def get_models_by_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
+async def get_models_by_complexity(complexity: str):
+    """Get models versions by complexity."""
+    ComplexityMapper.is_valid_label(complexity)
     return version_manager.get_complexity_versions(complexity)
 
 @router.get(
@@ -246,8 +248,11 @@ async def get_active_models():
     **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
-async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
+async def get_active_model_by_complexity(complexity: str):
     """Get active version for a specific complexity (or latest if none set)."""
+    # Validate complexity
+    ComplexityMapper.is_valid_label(complexity)
+
     try:
         # Get the version to use (active or latest)
         version = version_manager.get_active_version(complexity)
@@ -300,6 +305,9 @@ async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMap
 )
 async def get_version_details(complexity: str, version: str):
     """Get metadata for a specific version."""
+    # Validate complexity
+    ComplexityMapper.is_valid_label(complexity)
+
     metadata = version_manager.get_version_metrics(complexity, version)
     if not metadata:
         raise HTTPException(
@@ -356,10 +364,13 @@ async def get_version_details(complexity: str, version: str):
     },
 )
 async def activate_model_version(
-    complexity: str = Depends(ComplexityMapper.is_valid_label), 
+    complexity: str,
     request: dict = Body(..., example={"version": "v1_2024-11-28_01-00-00", "user": "admin@example.com"})
 ):
     """Activate a specific model version."""
+    # Validate complexity
+    ComplexityMapper.is_valid_label(complexity)
+
     version = request.get("version")
     user = request.get("user", "system")
     

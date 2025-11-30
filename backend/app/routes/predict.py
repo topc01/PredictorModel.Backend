@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status
 from app.predictor import predict
 from app.utils.version import ComplexityMapper
 
@@ -53,15 +53,16 @@ router = APIRouter(
     }
   }
 )
-async def predict_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
+async def predict_complexity(complexity: str):
     """
     Realiza una predicción para una complejidad específica.
     
     Args:
         complexity: Label de la complejidad (baja, media, alta, neonatologia, pediatria, intepediatrico, maternidad)
     """
+    ComplexityMapper.is_valid_label(complexity)
+    
     try:
-        # Parse API input to real complexity name
         real_complexity = ComplexityMapper.parse_from_api(complexity)
     except ValueError as e:
         raise HTTPException(
