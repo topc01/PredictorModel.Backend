@@ -169,27 +169,8 @@ s3://tu-bucket/models/
             Body=json.dumps(metadata, indent=2)
         )
         logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
-    
-    def _load_model(self, complexity: str, version: str) -> "Model":
-        """
-        Load a model from storage using joblib.
-        
-        Best practices:
-        - Local: Direct file read with joblib.load
-        - S3: Download to BytesIO buffer, then load
-        
-        Args:
-            complexity: Model complexity
-            version: Version identifier
-            
-        Returns:
-            Loaded model object
-        """
-        import joblib
-        from io import BytesIO
-        
-        model_path = self.path(complexity, version).model
-        
+
+    def _load_model_path(self, model_path: str) -> "Model":
         if self.env == "local":
             # Local mode: Direct file read
             if not os.path.exists(model_path):
@@ -214,7 +195,27 @@ s3://tu-bucket/models/
             return model
         except self.s3_client.exceptions.NoSuchKey:
             raise FileNotFoundError(f"Model not found in S3: s3://{self.s3_bucket}/{model_path}")
+    
+    def _load_model(self, complexity: str, version: str) -> "Model":
+        """
+        Load a model from storage using joblib.
+        
+        Best practices:
+        - Local: Direct file read with joblib.load
+        - S3: Download to BytesIO buffer, then load
+        
+        Args:
+            complexity: Model complexity
+            version: Version identifier
+            
+        Returns:
+            Loaded model object
+        """
+        from io import BytesIO
+        
+        model_path = self.path(complexity, version).model
 
+        return self._load_model_path(model_path)
     
     def _create_version_manager(self) -> None:
         """Create version manager configuration file if it doesn't exist."""
