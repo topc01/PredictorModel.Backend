@@ -10,6 +10,9 @@ import numpy as np
 from fastapi import HTTPException
 from app.utils.version import version_manager, ComplexityMapper
 from app.utils.storage import storage_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 def save_prophet_model(model, metrics, complexity, df_prophet):
 
@@ -24,27 +27,9 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
 
     if not isinstance(complexity, str) or not complexity.strip():
         raise ValueError("El campo 'complexity' debe ser un string no vacío.")
-    
-    version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    base_path = f"models/prophet/{complexity}/{version}"
-    os.makedirs(base_path, exist_ok=True)
-
-    # Guardar el modelo y las métricas
-    try:
-        joblib.dump(model, f"{base_path}/model.pkl")
-    except Exception as e:
-        raise IOError(f"Error saving model: {str(e)}")
-    
-    try:
-        with open(f"{base_path}/metrics.json", "w") as f:
-            json.dump(metrics, f, indent=4)
-    except Exception as e:
-        print(f"Error saving metrics: {str(e)}")
 
     metadata = {
-        "version": version,
         "complexity": complexity,
-        "trained_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "n_samples": df_prophet.shape[0],
         "params": {
             "yearly_seasonality": True,
@@ -54,23 +39,10 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         },
         "metrics": metrics
     }
-
     try:
-        version_manager.save_model(model, metadata)
+        return version_manager.save_model(model, metadata)
     except Exception as e:
         raise IOError(f"Error saving model with version manager: {str(e)}")
-
-    try:
-        with open(f"{base_path}/metadata.json", "w") as f:
-            json.dump(metadata, f, indent=4)
-    except Exception as e:
-        raise IOError(f"Error saving metadata: {str(e)}")
-
-    return {
-        "version": version,
-        "path": base_path,
-        "metrics": metrics
-    }
 
 def load_data(complexity: str):
     # BASE_DIR = Path(__file__).resolve().parent.parent.parent
