@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
 
 from app.utils.version import version_manager, ComplexityMapper
 
@@ -148,7 +148,7 @@ async def get_all_models():
         }
     },
 )
-async def get_models_by_complexity(complexity: str):
+async def get_models_by_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
     return version_manager.get_complexity_versions(complexity)
 
 @router.get(
@@ -194,7 +194,7 @@ async def get_active_models():
     If no active version is configured, automatically returns the latest version.
     """,
 )
-async def get_active_model_by_complexity(complexity: str):
+async def get_active_model_by_complexity(complexity: str = Depends(ComplexityMapper.is_valid_label)):
     """Get active version for a specific complexity (or latest if none set)."""
     try:
         # Get the version to use (active or latest)
@@ -235,7 +235,7 @@ async def get_active_model_by_complexity(complexity: str):
     Get detailed metadata for a specific model version.
     """,
 )
-async def get_version_details(complexity: str, version: str):
+async def get_version_details(complexity: str = Depends(ComplexityMapper.is_valid_label), version: str = None):
     """Get metadata for a specific version."""
     metadata = version_manager.get_version_metadata(complexity, version)
     if not metadata:
@@ -276,7 +276,7 @@ async def get_version_details(complexity: str, version: str):
     },
 )
 async def activate_model_version(
-    complexity: str, 
+    complexity: str = Depends(ComplexityMapper.is_valid_label), 
     request: dict = Body(..., example={"version": "v1_2024-11-28_01-00-00", "user": "admin@example.com"})
 ):
     """Activate a specific model version."""
