@@ -1,4 +1,4 @@
-
+from fastapi import HTTPException
 
 class ComplexityMapper:
     """
@@ -86,7 +86,13 @@ class ComplexityMapper:
     @classmethod
     def is_valid_label(cls, label: str) -> bool:
         """Check if a label is valid."""
-        return label in cls._REVERSE_MAP
+        is_valid = label in cls._REVERSE_MAP
+        if not is_valid:
+            raise HTTPException(
+              status_code = 422,
+              detail = f"Invalid complexity label: {label}. Valid options: {', '.join(cls.get_all_labels())}"
+            )
+        return is_valid
     
     @classmethod
     def is_valid_real_name(cls, real_name: str) -> bool:
