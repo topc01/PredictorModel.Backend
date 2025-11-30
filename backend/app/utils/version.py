@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import logging
 from pathlib import Path
+import joblib
 
 from app.utils.storage import StorageManager
 from app.utils.complexities import ComplexityMapper
@@ -107,10 +108,29 @@ s3://tu-bucket/models/
                 return f"{self_.base_dir}/{label(self_.complexity)}"
             @property
             def version_dir(self_):
+                if not self_._version:
+                    raise ValueError("Version not set - cannot access version_dir")
                 return f"{self_.dir}/{self_.version}"
             @property
             def active_versions_register(self_):
                 return f"{self_.base_dir}/active_versions.json"
+            @property
+            def base_model(self_):
+                """Path to base model file (fallback when no versions exist)."""
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return f"{self_.base_dir}/{label(self_._complexity)}.pkl"
+            @property
+            def feature_names_file(self_):
+                """Path to feature names file."""
+                return f"{self_.base_dir}/feature_names.pkl"
+            
+            @property
+            def base_metrics_file(self_):
+                """Path to base metrics file (fallback when no versions exist)."""
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return f"{self_.base_dir}/results/{label(self_._complexity)}.json"
 
         
 
