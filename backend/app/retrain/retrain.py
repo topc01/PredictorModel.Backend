@@ -177,7 +177,7 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining models...")
-    for complexity in ComplexityMapper.get_all_real_names():
+    for complexity in ComplexityMapper.get_all_labels():
         retrain_prophet_model(complexity=complexity)
     print("Models retrained.")
     pass
