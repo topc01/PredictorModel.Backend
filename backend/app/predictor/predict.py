@@ -94,13 +94,10 @@ def predict(complexity: str):
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
 
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
     data_total = storage_manager.load_csv('predictions.csv')
 
     df = data_total[data_total["complejidad"] == complexity]
-    FEATURE_PATH = "models/feature_names.pkl"
-    feature_names = joblib.load(FEATURE_PATH)
+    feature_names = version_manager.get_feature_names()
 
     try:
         np.random.seed(42)

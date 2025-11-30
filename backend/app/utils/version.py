@@ -463,6 +463,35 @@ s3://tu-bucket/models/
     def get_active_versions(self):
         return { complexity: self.get_active_version(complexity) for complexity in self.complexities }
 
+    def get_feature_names(self):
+        """
+        Load feature names from storage.
+        
+        Returns:
+            List of feature names
+        """
+        feature_names_path = self.path().feature_names_file
+        logger.info(f"Loading feature names from: {feature_names_path}")
+        
+        if self.env == "local":
+            if not os.path.exists(feature_names_path):
+                raise FileNotFoundError(f"Feature names file not found: {feature_names_path}")
+            return joblib.load(feature_names_path)
+        
+        # S3 mode
+        from io import BytesIO
+        try:
+            with BytesIO() as buffer:
+                self.s3_client.download_fileobj(
+                    Bucket=self.s3_bucket,
+                    Key=feature_names_path,
+                    Fileobj=buffer
+                )
+                buffer.seek(0)
+                return joblib.load(buffer)
+        except self.s3_client.exceptions.NoSuchKey:
+            raise FileNotFoundError(f"Feature names not found in S3: s3://{self.s3_bucket}/{feature_names_path}")
+
 
 
 _s3_bucket = os.getenv("S3_DATA_BUCKET", None)
