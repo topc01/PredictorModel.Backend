@@ -85,7 +85,7 @@ class ComplexityMapper:
         return cls._REVERSE_MAP[label]
     
     @classmethod
-    def is_valid_label(cls, label: str) -> bool:
+    def is_valid_label(cls, label: str) -> str:
         """Check if a label is valid."""
         is_valid = label in cls._REVERSE_MAP or label in cls._REVERSE_MAP_UNDERCASE
         if not is_valid:
@@ -93,7 +93,7 @@ class ComplexityMapper:
               status_code = 422,
               detail = f"Invalid complexity label: {label}. Valid options: {', '.join(cls.get_all_labels())}"
             )
-        return is_valid
+        return label
     
     @classmethod
     def is_valid_real_name(cls, real_name: str) -> bool:
