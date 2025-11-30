@@ -40,6 +40,7 @@ class ComplexityMapper:
     
     # Reverse mapping: label -> real_name (for internal use)
     _REVERSE_MAP = {v: k for k, v in _COMPLEXITY_MAP.items()}
+    _REVERSE_MAP_UNDERCASE = {v.lower(): k for k, v in _COMPLEXITY_MAP.items()}
     
     @classmethod
     def to_label(cls, real_name: str) -> str:
@@ -86,7 +87,7 @@ class ComplexityMapper:
     @classmethod
     def is_valid_label(cls, label: str) -> bool:
         """Check if a label is valid."""
-        is_valid = label in cls._REVERSE_MAP
+        is_valid = label in cls._REVERSE_MAP or label in cls._REVERSE_MAP_UNDERCASE
         if not is_valid:
             raise HTTPException(
               status_code = 422,
