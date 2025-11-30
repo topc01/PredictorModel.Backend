@@ -10,6 +10,7 @@ from typing import Optional, List, Dict
 import logging
 from pathlib import Path
 import joblib
+from io import BytesIO
 
 from app.utils.storage import StorageManager
 from app.utils.complexities import ComplexityMapper
@@ -149,13 +150,25 @@ s3://tu-bucket/models/
             model: Model object (Prophet, sklearn, etc.) to save
             metadata: Metadata dictionary to save with the model
         """
-        import joblib
-        from io import BytesIO
+        # import joblib
+        # from io import BytesIO
+
+        logger.info("Saving model with version manager. ")
+        logger.info(f"Model: {model}")
+        logger.info(f"Metadata: {metadata}")
         
-        version = metadata.get("version")
+        version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        metadata['version'] = version
+        metadata['trained_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         complexity = metadata.get("complexity")
         model_path = self.path(complexity, version).model
         metadata_path = self.path(complexity, version).metadata
+
+        result = {
+            "version": version,
+            "path": model_path,
+            "metadata": metadata
+        }
 
         if self.env == "local":
             # Local mode: Direct file write
@@ -170,26 +183,28 @@ s3://tu-bucket/models/
                 json.dump(metadata, f, indent=2)
             
             logger.info(f"Model saved locally: {model_path}")
-            return
-
-        # S3 mode: Serialize to BytesIO buffer first
-        with BytesIO() as model_buffer:
-            joblib.dump(model, model_buffer, compress=3)
-            model_buffer.seek(0)
-            self.s3_client.upload_fileobj(
-                model_buffer,
+            
+        else:
+            # S3 mode: Serialize to BytesIO buffer first
+            with BytesIO() as model_buffer:
+                joblib.dump(model, model_buffer, compress=3)
+                model_buffer.seek(0)
+                self.s3_client.upload_fileobj(
+                    model_buffer,
+                    Bucket=self.s3_bucket,
+                    Key=model_path
+                )
+            
+            # Save metadata to S3
+            self.s3_client.put_object(
                 Bucket=self.s3_bucket,
-                Key=model_path
+                Key=metadata_path,
+                Body=json.dumps(metadata, indent=2)
             )
-        
-        # Save metadata to S3
-        self.s3_client.put_object(
-            Bucket=self.s3_bucket,
-            Key=metadata_path,
-            Body=json.dumps(metadata, indent=2)
-        )
-        logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
-
+            logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
+            
+        return result
+    
     def _load_model_path(self, model_path: str) -> "Model":
         if self.env == "local":
             # Local mode: Direct file read
