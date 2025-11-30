@@ -252,6 +252,23 @@ s3://tu-bucket/models/
         """Method to get raw active version data from JSON."""
         return self._active_versions.get(complexity, {})
 
+    def get_base_model(self, complexity: str) -> "Model":
+        """
+        Load the base model for a given complexity.
+        
+        This is used as a fallback when no versioned models exist.
+        The base model is stored at: models/{complexity}.pkl
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Loaded base model object
+        """
+        base_model_path = self.path(complexity).base_model
+        logger.info(f"Loading base model for {complexity} from: {base_model_path}")
+        return self._load_model_path(base_model_path)
+    
     def get_latest_version(self, complexity: str) -> Optional[str]:
         versions = self.get_complexity_versions(complexity)
         if not versions:
