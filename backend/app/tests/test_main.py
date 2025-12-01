@@ -362,3 +362,85 @@
 # @pytest.fixture
 # def valid_weekly_data():
 #     return WeeklyData.example().model_dump(by_alias=True)
+
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock
+import time
+
+from app.main import app
+
+client = TestClient(app)
+
+
+# -------------------------------
+#   TEST /  (root endpoint)
+# -------------------------------
+def test_root():
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["message"] == "Predictor Model Backend API"
+    assert "version" in body
+    assert body["docs"] == "/docs"
+
+
+# -------------------------------
+#   TEST /health
+# -------------------------------
+def test_health_check():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
+# -------------------------------
+#   TEST WebSocket /ws/health
+# -------------------------------
+def test_websocket_health_connected_and_heartbeat():
+
+    with patch("app.main.get_redis_client") as mock_redis:
+        # Simular Redis OK
+        fake_client = MagicMock()
+        fake_client.ping.return_value = True
+        mock_redis.return_value = fake_client
+
+        # Evitar que asyncio.sleep espere 10 segundos
+        with patch("asyncio.sleep", return_value=None):
+
+            with client.websocket_connect("/ws/health") as websocket:
+                # Primer mensaje: type=connected
+                data = websocket.receive_json()
+                assert data["type"] == "connected"
+                assert data["status"] == "healthy"
+                assert "timestamp" in data
+                assert "version" in data
+
+                # Segundo mensaje: heartbeat
+                data = websocket.receive_json()
+                assert data["type"] == "heartbeat"
+                assert data["status"] == "healthy"
+
+
+# -------------------------------
+#   TEST WebSocket con Redis caído
+# -------------------------------
+def test_websocket_health_redis_fails():
+
+    with patch("app.main.get_redis_client") as mock_redis:
+        # Simular error en Redis
+        fake_client = MagicMock()
+        fake_client.ping.side_effect = Exception("redis down")
+        mock_redis.return_value = fake_client
+
+        with patch("asyncio.sleep", return_value=None):
+
+            with client.websocket_connect("/ws/health") as websocket:
+                data = websocket.receive_json()
+                assert data["type"] == "connected"
+
+                # Heartbeat con fallo Redis
+                data = websocket.receive_json()
+                assert data["type"] == "heartbeat"
+                assert data["status"] == "degraded"
