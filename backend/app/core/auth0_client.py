@@ -1,7 +1,8 @@
 """Auth0 Management API client."""
 import httpx
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from app.core.config import settings
+from app.schemas.user import UserResponse
 
 
 class Auth0ManagementClient:
@@ -159,6 +160,21 @@ class Auth0ManagementClient:
             print(f"Error getting user role from Auth0: {e}")
             return None
         return None
+      
+    def get_all_users(self, skip: int = 0, limit: int = 100) -> List[UserResponse]:
+        """Get all users from Auth0."""
+        url = f"https://{self.domain}/api/v2/users?per_page={limit}&page={skip}"
+        response = httpx.get(url, headers=self._get_headers())
+        response.raise_for_status()
+        users = response.json()
+
+        return [UserResponse(
+          email=user["email"],
+          name=user["name"],
+          role=user["app_metadata"]["role"],
+          created_at=user["created_at"],
+          updated_at=user["updated_at"]
+        ) for user in users]
 
 
 # Global instance

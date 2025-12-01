@@ -90,7 +90,7 @@ async def list_users(
     current_user: dict = Depends(require_role(UserRole.ADMIN))
 ):
     """List all users."""
-    users = User.list_all(skip=skip, limit=limit)
+    users = auth0_client.get_all_users(skip=skip, limit=limit)
     return users
 
 
