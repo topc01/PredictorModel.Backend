@@ -269,7 +269,37 @@ def preparar_datos_por_complejidad(df_original, complejidad_valor):
         'servicio ingreso (código)_UEMECLI4_lag1',
         'servicio ingreso (código)_UEMECLI5_lag1',
         'servicio ingreso (código)_UEMECLI6_lag1',
-        ...
+         'servicio ingreso (código)_UEMECLI7_lag1',
+        'servicio ingreso (código)_UEMEQ2ED_lag1',
+        'servicio ingreso (código)_UEMEQ4DE_lag1',
+        'servicio ingreso (código)_UEMEQCLI_lag1',
+        'servicio ingreso (código)_UEMEQX4A_lag1',
+        'servicio ingreso (código)_UEMEQX4B_lag1',
+        'servicio ingreso (código)_UEMEQX4C_lag1',
+        'servicio ingreso (código)_UEMEQX5A_lag1',
+        'servicio ingreso (código)_UEMEQX5B_lag1',
+        'servicio ingreso (código)_UEMEQX5C_lag1',
+        'servicio ingreso (código)_UEMULTI2_lag1',
+        'servicio ingreso (código)_UEOCLI10_lag1',
+        'servicio ingreso (código)_UEONCCLI_lag1',
+        'servicio ingreso (código)_UEONCLI8_lag1',
+        'servicio ingreso (código)_UEPENMAT_lag1',
+        'servicio ingreso (código)_UEINAD_lag1',
+        'servicio ingreso (código)_UEINAD4_lag1',
+        'servicio ingreso (código)_UERECUP6_lag1',
+        'servicio ingreso (código)_UEUNICOR_lag1',
+        'servicio ingreso (código)_UEINT8_lag1',
+       'servicio ingreso (código)_UEINTCLI_lag1',
+       'servicio ingreso (código)_UEINTM5B_lag1',
+       'servicio ingreso (código)_UEINTM5C_lag1',
+       'servicio ingreso (código)_UETRAME2_lag1',
+       'servicio ingreso (código)_UETRAMEN_lag1',
+       'servicio ingreso (código)_UENEONAT_lag1',
+       'servicio ingreso (código)_UEINMPED_lag1',
+       'servicio ingreso (código)_UEINSPED_lag1',
+       'servicio ingreso (código)_UEONCPED_lag1',
+       'servicio ingreso (código)_UEPEDCLI_lag1',
+       'servicio ingreso (código)_UEPEDIAT_lag1'
     ]
     semanal.drop(columns=cols_a_eliminar, errors='ignore', inplace=True)
 
@@ -328,7 +358,7 @@ def procesar_excel_completo(archivo: BinaryIO) -> None:
             print(f"[ERROR] Falló el procesamiento de {c}: {e}")
     
     df_final = pd.concat(dfs_todos, ignore_index=True).sort_values(['semana_año', 'complejidad'])
-    # 🔥 FIX: agregar complejidades faltantes en cada semana
+    #  FIX: agregar complejidades faltantes en cada semana
     df_final = rellenar_complejidades_faltantes(df_final, lista_complejidades=ComplexityMapper.get_all_real_names())
 
     # Reordenar y guardar
