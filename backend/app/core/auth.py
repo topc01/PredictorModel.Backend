@@ -4,7 +4,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from jose.utils import base64url_decode
 import httpx
-from typing import Optional
+from typing import Optional, Dict, Tuple
+from datetime import datetime, timedelta
 from app.core.config import settings
 from app.models.user import UserRole
 from app.core.auth0_client import auth0_client
@@ -13,6 +14,10 @@ security = HTTPBearer()
 
 # Cache for JWKS
 _jwks_cache: Optional[dict] = None
+
+# Cache for email/sub mapping (sub -> (email, timestamp))
+_email_cache: Dict[str, Tuple[str, datetime]] = {}
+CACHE_TTL = timedelta(minutes=5)  # Cache for 5 minutes
 
 
 def get_jwks() -> dict:
@@ -73,18 +78,29 @@ def verify_token(token: str) -> dict:
         )
 
 
+def _get_email_from_cache(sub: str) -> Optional[str]:
+    """Get email from cache if available and not expired."""
+    if sub in _email_cache:
+        email, timestamp = _email_cache[sub]
+        if datetime.utcnow() - timestamp < CACHE_TTL:
+            return email
+        else:
+            # Cache expired, remove it
+            del _email_cache[sub]
+    return None
+
+
+def _set_email_in_cache(sub: str, email: str) -> None:
+    """Store email in cache."""
+    _email_cache[sub] = (email, datetime.utcnow())
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """Get current user from JWT token."""
     token = credentials.credentials
     payload = verify_token(token)
-    
-    # DEBUG: Log token payload
-    print("=" * 50)
-    print("DEBUG - Token payload keys:", list(payload.keys()))
-    print("DEBUG - Full token payload:", payload)
-    print("=" * 50)
     
     # Extract user info from token - try multiple possible locations
     email = (
@@ -95,45 +111,55 @@ def get_current_user(
     
     sub = payload.get("sub")  # Auth0 user ID
     
-    # DEBUG: Log email extraction attempts
-    print(f"DEBUG - Email from 'email': {payload.get('email')}")
-    print(f"DEBUG - Email from 'https://email': {payload.get('https://email')}")
-    print(f"DEBUG - Sub (user_id): {sub}")
-    
     # If sub is an email (contains @), use it as fallback
     if not email and sub and "@" in sub:
         email = sub
-        print(f"DEBUG - Using sub as email: {email}")
     
-    # If still no email, try to get it from Auth0 Management API using user_id
+    # If still no email, try multiple methods in order of preference
     if not email and sub:
-        print(f"DEBUG - Attempting to get email from Auth0 Management API using sub: {sub}")
-        try:
-            from app.core.auth0_client import auth0_client
-            # Extract user_id from sub (format: auth0|user_id or just user_id)
-            user_id = sub
-            if "|" in user_id:
-                user_id = user_id.split("|")[1]
-            
-            # Get user from Auth0 Management API
-            url = f"https://{auth0_client.domain}/api/v2/users/{sub}"
-            import httpx
-            response = httpx.get(url, headers=auth0_client._get_headers())
-            if response.status_code == 200:
-                auth0_user = response.json()
-                email = auth0_user.get("email")
-                print(f"DEBUG - Got email from Auth0 Management API: {email}")
-        except Exception as e:
-            print(f"DEBUG - Error getting email from Auth0 Management API: {e}")
+        # Method 1: Check cache first
+        email = _get_email_from_cache(sub)
+        
+        # Method 2: Try /userinfo endpoint (most efficient, no rate limits)
+        if not email:
+            try:
+                userinfo = auth0_client.get_userinfo(token)
+                if userinfo and userinfo.get("email"):
+                    email = userinfo.get("email")
+                    _set_email_in_cache(sub, email)
+            except Exception:
+                pass
+        
+        # Method 3: Try Management API (last resort, has rate limits)
+        if not email:
+            try:
+                url = f"https://{auth0_client.domain}/api/v2/users/{sub}"
+                response = httpx.get(url, headers=auth0_client._get_headers(), timeout=5.0)
+                
+                if response.status_code == 200:
+                    auth0_user = response.json()
+                    email = auth0_user.get("email")
+                    if email:
+                        _set_email_in_cache(sub, email)
+                elif response.status_code == 429:
+                    # Rate limit - try cache again (might have been set by another request)
+                    email = _get_email_from_cache(sub)
+                    if not email:
+                        raise HTTPException(
+                            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Auth0 service temporarily unavailable (rate limited). Please try again in a moment."
+                        )
+            except HTTPException:
+                raise
+            except Exception:
+                # If Management API fails, try cache one more time
+                email = _get_email_from_cache(sub)
     
     if not email:
-        print("DEBUG - Email not found in any expected location")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Email not found in token. Available keys: {list(payload.keys())}. Make sure to include 'email' in the token scopes or ensure the user exists in Auth0."
         )
-    
-    print(f"DEBUG - Final email extracted: {email}")
     
     return {
         "email": email,
@@ -150,8 +176,8 @@ def get_current_active_user(
     return current_user
 
 
-def get_user_role_from_token(payload: dict) -> UserRole:
-    """Extract user role from token payload."""
+def get_user_role_from_token(payload: dict) -> Optional[UserRole]:
+    """Extract user role from token payload. Returns None if role not found."""
     # Check for role in app_metadata or custom claims
     app_metadata = payload.get("https://app_metadata") or payload.get("app_metadata") or {}
     role = app_metadata.get("role")
@@ -161,8 +187,8 @@ def get_user_role_from_token(payload: dict) -> UserRole:
     elif role == "viewer":
         return UserRole.VIEWER
     
-    # Default to viewer if no role found
-    return UserRole.VIEWER
+    # Return None if no role found in token
+    return None
 
 
 def get_current_user_with_role(
@@ -173,17 +199,26 @@ def get_current_user_with_role(
     email = current_user["email"]
     
     # Try to get role from token first
-    role = get_user_role_from_token(payload)
+    role_from_token = get_user_role_from_token(payload)
     
-    # If role not in token, get from Auth0 Management API
-    if role == UserRole.VIEWER:  # Default, might not be accurate
-        try:
-            role_str = auth0_client.get_user_role(email)
-            if role_str:
-                role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
-        except Exception as e:
-            print(f"Error getting role from Auth0 Management API: {e}")
-            # Keep default VIEWER role on error
+    # Always consult Auth0 Management API to ensure we have the correct role
+    # This is necessary because tokens don't always include app_metadata
+    role = None
+    try:
+        role_str = auth0_client.get_user_role(email)
+        if role_str:
+            role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
+    except Exception:
+        # If Auth0 API fails and we have role from token, use that
+        if role_from_token:
+            role = role_from_token
+    
+    # If we still don't have a role, use token role or default to VIEWER
+    if role is None:
+        if role_from_token:
+            role = role_from_token
+        else:
+            role = UserRole.VIEWER
     
     return current_user, role
 

@@ -169,6 +169,22 @@ class Auth0ManagementClient:
         users = response.json()
 
         return users
+    
+    def get_userinfo(self, access_token: str) -> Optional[Dict[str, Any]]:
+        """Get user info from Auth0 /userinfo endpoint using access token."""
+        url = f"https://{self.domain}/userinfo"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = httpx.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting userinfo from Auth0: {e}")
+            return None
 
 
 # Global instance
