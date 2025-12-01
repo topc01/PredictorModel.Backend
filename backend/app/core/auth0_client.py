@@ -168,13 +168,7 @@ class Auth0ManagementClient:
         response.raise_for_status()
         users = response.json()
 
-        return [UserResponse(
-          email=user["email"],
-          name=user["name"],
-          role=user["app_metadata"]["role"],
-          created_at=user["created_at"],
-          updated_at=user["updated_at"]
-        ) for user in users]
+        return users
 
 
 # Global instance

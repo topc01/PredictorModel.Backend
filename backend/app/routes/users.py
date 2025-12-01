@@ -91,7 +91,13 @@ async def list_users(
 ):
     """List all users."""
     users = auth0_client.get_all_users(skip=skip, limit=limit)
-    return users
+    return [UserResponse(
+          email=user["email"],
+          name=user["name"],
+          role=user.get("app_metadata", {}).get("role"),
+          created_at=user.get("created_at"),
+          updated_at=user.get("updated_at")
+        ) for user in users]
 
 
 @router.put("/{email}", response_model=UserResponse)
