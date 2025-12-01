@@ -45,9 +45,14 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         raise IOError(f"Error saving model with version manager: {str(e)}")
 
 def load_data(complexity: str):
-    # BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    # DATA_PATH = BASE_DIR / "data" / "dataset_prueba.csv" ## cambiar por el real
-    df = storage_manager.load_csv("dataset.csv")
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    DATA_PATH = BASE_DIR / "data" / "dataset (2).csv" ## cambiar por el real
+    
+    df = pd.read_csv(DATA_PATH)
+
+    # df = storage_manager.load_csv("dataset.csv")
+    print(df.tail())
+    #print("Data loaded for complexity:", df.head())
     # df = pd.read_csv(DATA_PATH)
 
     if df is None or df.empty:
@@ -100,6 +105,7 @@ def retrain_prophet_model(complexity: str):
     """
     df = load_data(complexity)
     df_prophet = prepare_data_prophet(df)
+    df_prophet = df_prophet.dropna()
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=False,
@@ -108,15 +114,14 @@ def retrain_prophet_model(complexity: str):
     )
 
     model.fit(df_prophet)
-    
         
-    future = model.make_future_dataframe(periods=1, freq='W')
+    future = model.make_future_dataframe(periods=5, freq='W')
 
     forecast = model.predict(future)
 
-    forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
+    forecast = forecast[forecast['ds'].isin(df_prophet['ds'])]
     merged = df_prophet.merge(forecast[['ds', 'yhat']], on='ds')
-
+    merged = merged.dropna()
     y_true = merged['y']
     y_pred = merged['yhat']
 
