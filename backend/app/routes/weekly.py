@@ -5,7 +5,7 @@ import pandas as pd
 import io
 from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..utils.storage import storage_manager
 from ..utils.complexities import ComplexityMapper
 
@@ -322,6 +322,11 @@ async def download_template():
     complejidades = ComplexityMapper.get_all_real_names()
     num_complejidades = len(complejidades)
     
+    # Calcular el lunes de la semana pasada
+    today = datetime.now()
+    days_since_monday = today.weekday()  # 0 = lunes, 6 = domingo
+    last_monday = today - timedelta(days=days_since_monday + 7)
+    
     data = {
         'Complejidad': complejidades,
         'Demanda pacientes': [50, 30, 40, 15, 25, 15, 25][:num_complejidades],
@@ -330,7 +335,7 @@ async def download_template():
         'Pacientes Qx': [20, 6, 10, 1, 25, 15, 25][:num_complejidades],
         'Ingresos no urgentes': [45, 25, 75, 5, 6, 15, 25][:num_complejidades],
         'Ingresos urgentes': [15, 5, 25, 5, 4, 15, 25][:num_complejidades],
-        'Fecha ingreso': [datetime.now().strftime('%Y-%m-%d')] * num_complejidades
+        'Fecha ingreso': [last_monday.strftime('%Y-%m-%d')] * num_complejidades
     }
     
     df = pd.DataFrame(data)
