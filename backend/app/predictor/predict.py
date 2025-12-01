@@ -3,11 +3,37 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import prophet
-import joblib
+import logging
 from ..utils.storage import storage_manager
+from ..utils.version import version_manager
+from ..utils.complexities import ComplexityMapper
+
+import os
+
+logger = logging.getLogger(__name__)
+
 
 def without_tilde(string: str) -> str:
     return string.replace('í', 'i')
+
+from datetime import datetime
+
+def choose_best_model(models_info):
+    models = models_info["models"]
+
+    for m in models:
+        m["trained_at_dt"] = datetime.strptime(m["trained_at"], "%Y-%m-%d %H:%M:%S")
+
+    sorted_models = sorted(
+        models,
+        key=lambda m: (
+            m["metrics"]["RMSE"],
+            m["metrics"]["MAE"],
+            -m["trained_at_dt"].timestamp()
+        )
+    )
+
+    return sorted_models[0]
 
 def pre_process_X_pred(df: pd.DataFrame, feature_names: list) -> pd.DataFrame:
     X = df.drop(columns=["demanda_pacientes", "complejidad"])
@@ -62,6 +88,7 @@ def predict_random_forest(model, X_pred):
         "intervalo_confianza": [lower, upper]
     }
 
+
 def predict(complexity: str):
     """
     Realiza una predicción para una complejidad específica.
@@ -70,81 +97,37 @@ def predict(complexity: str):
         complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
     """
 
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-    ## Cargar datos desde CSV (CAMBIABLE)
-    
-    # DATA_PATH = BASE_DIR / "data" / "predictions.csv"
-    DATA_PATH = "data/predictions.csv"
-
     data_total = storage_manager.load_csv('predictions.csv')
-    # data_total = pd.read_csv(DATA_PATH)
-    
-    # print(data_total.head())
+
     df = data_total[data_total["complejidad"] == complexity]
-    # print(df.head())
-    # complexity = complexity.lower()
-    # FEATURE_PATH = BASE_DIR / "models" / "feature_names.pkl"
-    FEATURE_PATH = "models/feature_names.pkl"
-    feature_names = joblib.load(FEATURE_PATH)
+    feature_names = version_manager.get_feature_names()
+
+    complexity = ComplexityMapper.to_label(complexity)
 
     try:
-        # model_path = BASE_DIR / "models" / f"model_{complexity}.pkl"
-        model_path = f"models/{complexity}.pkl"
         np.random.seed(42)
-        model = joblib.load(model_path)
-        print(f"modelo cargado en pkl")
+        model = version_manager.get_model(complexity)
+        version = version_manager.get_active_version(complexity)
     except Exception as e:
         raise Exception(f"error {e}")
-        print(f"error {e}")
 
-    try:
-        result_path = BASE_DIR / "models" / "results" / f"{complexity}.json"
-        with open(result_path, "r", encoding="utf-8") as f:
-            metrics_models = json.load(f)
-        print("Resultados cargados desde JSON:")
-        print(metrics_models)
-    except Exception as e:
-        raise Exception(f"error {e}")
-        print(f"No se pudo cargar resultados desde JSON: {e}")
 
-    ## Realizar la predicción
-    if complexity == "Baja":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Media":
-        X_pred = pre_process_X_pred(df, feature_names)
-        result = predict_random_forest(model, X_pred)
-        prediccion = result["prediccion"]
-        lower = result["intervalo_confianza"][0]
-        upper = result["intervalo_confianza"][1]
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Alta":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        print(response)
-        return response
-    elif complexity == "Neonatología":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    elif complexity == "Pediatría":
-        result = predict_prophet_model(model, periods=1)
-        prediccion = result.yhat.values[-1]
-        lower = result.yhat_lower.values[-1]
-        upper = result.yhat_upper.values[-1]    
-        response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
-        return response
-    raise Exception(f"Complejidad {complexity} no encontrada.")
+    if not ComplexityMapper.is_valid_label(complexity):
+        raise Exception(f"Invalid complexity: {complexity}")
 
+    # Get metrics: use version metadata if available, otherwise use base metrics
+    if version:
+        metrics_models = version_manager.get_version_metrics(complexity, version)
+    else:
+        logger.info(f"No version available for {complexity}, using base metrics")
+        metrics_models = version_manager.get_base_metrics(complexity)
+        if not metrics_models:
+            logger.warning(f"No metrics found for {complexity}")
+            metrics_models = {}
+    
+    result = predict_prophet_model(model, periods=1)
+    prediccion = result.yhat.values[-1]
+    lower = result.yhat_lower.values[-1]
+    upper = result.yhat_upper.values[-1]    
+    response = {"complexity": complexity, "prediction": prediccion, "lower": lower, "upper": upper, "MAE": metrics_models.get("MAE"), "RMSE": metrics_models.get("RMSE"), "R2": metrics_models.get("R2")}
+    return response

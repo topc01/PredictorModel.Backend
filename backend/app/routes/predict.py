@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from app.predictor import predict
+from app.utils.version import ComplexityMapper
 
 router = APIRouter(
     tags=["Predict"],
@@ -14,12 +15,21 @@ router = APIRouter(
   summary="Realizar predicción", 
   description="""Realiza una predicción para una complejidad específica.
   
-  Complejidades disponibles:
-    - alta
-    - media
-    - baja
-    - neonatologia
-    - pediatria
+  **Complejidades disponibles** (case-insensitive):
+  
+  | Label API | Nombre Real | Descripción |
+  |-----------|-------------|-------------|
+  | `baja` | Baja | Complejidad baja |
+  | `media` | Media | Complejidad media |
+  | `alta` | Alta | Complejidad alta |
+  | `neonatologia` | Neonatología | Neonatología |
+  | `pediatria` | Pediatría | Pediatría |
+  | `intepediatrico` | Inte. Pediátrico | Intermedio Pediátrico |
+  | `maternidad` | Maternidad | Maternidad |
+  
+  **Nota:** El API acepta mayúsculas y minúsculas (`alta`, `Alta`, `ALTA`), pero se recomienda usar minúsculas.
+  
+  **Validación:** Este endpoint usa `ComplexityMapper` para validar automáticamente el parámetro de complejidad.
   """,
   responses={
     200: {
@@ -48,33 +58,19 @@ async def predict_complexity(complexity: str):
     Realiza una predicción para una complejidad específica.
     
     Args:
-        complexity: Nombre de la complejidad (Alta, Media, Baja, Neonatología, Pediatría)
+        complexity: Label de la complejidad (baja, media, alta, neonatologia, pediatria, intepediatrico, maternidad)
     """
-    def parse(complexity: str) -> str:
-        match complexity:
-            case 'alta':
-                return 'Alta'
-            case 'media':
-                return 'Media'
-            case 'baja':
-                return 'Baja'
-            case 'neonatologia':
-                return 'Neonatología'
-            case 'pediatria':
-                return 'Pediatría'
-            case _:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Complejidad {complexity} inválida."
-                )
-    # Validar complejidad
-    # valid_complexities = ['Alta', 'Media', 'Baja', 'Neonatología', 'Pediatría','Neonatologia', 'Pediatria']
-    # if complexity not in valid_complexities:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail=f"Complejidad inválida. Valores permitidos: {', '.join(valid_complexities)}"
-    #     )
-    prediction = predict(parse(complexity))
+    ComplexityMapper.is_valid_label(complexity)
+    
+    try:
+        real_complexity = ComplexityMapper.parse_from_api(complexity)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    prediction = predict(real_complexity)
     if prediction is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

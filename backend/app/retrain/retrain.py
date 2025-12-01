@@ -8,8 +8,11 @@ from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 from fastapi import HTTPException
-from app.utils.version import version_manager
+from app.utils.version import version_manager, ComplexityMapper
 from app.utils.storage import storage_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 def save_prophet_model(model, metrics, complexity, df_prophet):
 
@@ -24,27 +27,9 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
 
     if not isinstance(complexity, str) or not complexity.strip():
         raise ValueError("El campo 'complexity' debe ser un string no vacío.")
-    
-    version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    base_path = f"models/prophet/{complexity}/{version}"
-    os.makedirs(base_path, exist_ok=True)
-
-    # Guardar el modelo y las métricas
-    try:
-        joblib.dump(model, f"{base_path}/model.pkl")
-    except Exception as e:
-        raise IOError(f"Error saving model: {str(e)}")
-    
-    try:
-        with open(f"{base_path}/metrics.json", "w") as f:
-            json.dump(metrics, f, indent=4)
-    except Exception as e:
-        print(f"Error saving metrics: {str(e)}")
 
     metadata = {
-        "version": version,
         "complexity": complexity,
-        "trained_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "n_samples": df_prophet.shape[0],
         "params": {
             "yearly_seasonality": True,
@@ -54,23 +39,10 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         },
         "metrics": metrics
     }
-
     try:
-        version_manager.save_model(model, metadata)
+        return version_manager.save_model(model, metadata)
     except Exception as e:
         raise IOError(f"Error saving model with version manager: {str(e)}")
-
-    try:
-        with open(f"{base_path}/metadata.json", "w") as f:
-            json.dump(metadata, f, indent=4)
-    except Exception as e:
-        raise IOError(f"Error saving metadata: {str(e)}")
-
-    return {
-        "version": version,
-        "path": base_path,
-        "metrics": metrics
-    }
 
 def load_data(complexity: str):
     # BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -81,12 +53,9 @@ def load_data(complexity: str):
     if df is None or df.empty:
         raise ValueError("El DataFrame cargado está vacío o es None.")
 
-    if complexity == "Pediatria":
-        complexity = "Pediatría"
-    elif complexity == "Neonatologia":
-        complexity = "Neonatología"
-    elif complexity == "Inte. Pediatrico":
-        complexity = "Inte. Pediátrico"
+    # Convert label to real name if needed
+    if ComplexityMapper.is_valid_label(complexity):
+        complexity = ComplexityMapper.to_real_name(complexity)
 
     df = df[df["complejidad"] == complexity]
 
@@ -180,8 +149,8 @@ def retrain_model():
     """"Function to retrain the model.
     """
     print("Retraining models...")
-    for e in ["Baja", "Media", "Alta", "Neonatologia", "Pediatria", "Maternidad", "Inte. Pediatrico"]:
-        retrain_prophet_model(complexity=e)
+    for complexity in ComplexityMapper.get_all_labels():
+        retrain_prophet_model(complexity=complexity)
     print("Models retrained.")
     pass
 
@@ -191,11 +160,11 @@ def get_prophet_models(complexity: str):
     """
     BASE_MODELS_PATH = "models/prophet"
 
+    # Convert label to real name if needed
+    if ComplexityMapper.is_valid_label(complexity):
+        complexity = ComplexityMapper.to_real_name(complexity)
+    
     complexity_path = os.path.join(BASE_MODELS_PATH, complexity)
-    try:
-        complexity = complexity.replace("Neonatologia", "Neonatología").replace("Pediatria", "Pediatría")
-    except:
-        pass
     try:
         if not os.path.exists(complexity_path):
             raise HTTPException(status_code=404, detail="No hay modelos guardados para esta complejidad.")

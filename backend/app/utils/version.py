@@ -9,24 +9,29 @@ from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import logging
 from pathlib import Path
+import joblib
+from io import BytesIO
 
 from app.utils.storage import StorageManager
+from app.utils.complexities import ComplexityMapper
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Backward compatibility: keep the old label() function
 def label(complexity: str) -> str:
     """
-    Convert complexity to label
+    Convert complexity to label (backward compatibility).
+    
+    Deprecated: Use ComplexityMapper.to_label() instead.
     """
-    if complexity == "Neonatología":
-        return "Neonatologia"
-    if complexity == "Pediatría":
-        return "Pediatria"
-    if complexity == "Inte. Pediátrico":
-        return "IntePediatrico"
-    return complexity
+    try:
+        return ComplexityMapper.to_label(complexity)
+    except ValueError:
+        # If not found, return as-is for backward compatibility
+        return complexity
+
 
 class VersionManager(StorageManager):
     """
@@ -66,16 +71,8 @@ s3://tu-bucket/models/
 └── active_versions.json 
     """
 
-    __complexities = [
-        "Baja",
-        "Media",
-        "Alta",
-        "Neonatología",
-        "Pediatría",
-        "Inte. Pediátrico",
-        "Maternidad"
-    ]
-    complexities = list(map(label, __complexities))
+    # Get all valid complexity labels from the centralized mapper
+    complexities = ComplexityMapper.get_all_labels()
 
     def __init__(self, env: Optional[str] = "local", s3_bucket: Optional[str] = None):
         # Set base directory for version management files
@@ -85,7 +82,9 @@ s3://tu-bucket/models/
 
         class Path:
             base_dir = "models"
-            def __call__(self_, complexity: str, version: str = None):
+            _complexity = None
+            _version = None
+            def __call__(self_, complexity: Optional[str] = None, version: Optional[str] = None):
                 self_._complexity = complexity
                 self_._version = version
                 return self_
@@ -110,10 +109,29 @@ s3://tu-bucket/models/
                 return f"{self_.base_dir}/{label(self_.complexity)}"
             @property
             def version_dir(self_):
+                if not self_._version:
+                    raise ValueError("Version not set - cannot access version_dir")
                 return f"{self_.dir}/{self_.version}"
             @property
             def active_versions_register(self_):
                 return f"{self_.base_dir}/active_versions.json"
+            @property
+            def base_model(self_):
+                """Path to base model file (fallback when no versions exist)."""
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return f"{self_.base_dir}/{label(self_._complexity)}.pkl"
+            @property
+            def feature_names_file(self_):
+                """Path to feature names file."""
+                return f"{self_.base_dir}/feature_names.pkl"
+            
+            @property
+            def base_metrics_file(self_):
+                """Path to base metrics file (fallback when no versions exist)."""
+                if not self_._complexity:
+                    raise ValueError("Complexity not set")
+                return f"{self_.base_dir}/results/{label(self_._complexity)}.json"
 
         
 
@@ -132,13 +150,25 @@ s3://tu-bucket/models/
             model: Model object (Prophet, sklearn, etc.) to save
             metadata: Metadata dictionary to save with the model
         """
-        import joblib
-        from io import BytesIO
+        # import joblib
+        # from io import BytesIO
+
+        logger.info("Saving model with version manager. ")
+        logger.info(f"Model: {model}")
+        logger.info(f"Metadata: {metadata}")
         
-        version = metadata.get("version")
+        version = f"v_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        metadata['version'] = version
+        metadata['trained_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         complexity = metadata.get("complexity")
         model_path = self.path(complexity, version).model
         metadata_path = self.path(complexity, version).metadata
+
+        result = {
+            "version": version,
+            "path": model_path,
+            "metadata": metadata
+        }
 
         if self.env == "local":
             # Local mode: Direct file write
@@ -153,46 +183,29 @@ s3://tu-bucket/models/
                 json.dump(metadata, f, indent=2)
             
             logger.info(f"Model saved locally: {model_path}")
-            return
-
-        # S3 mode: Serialize to BytesIO buffer first
-        with BytesIO() as model_buffer:
-            joblib.dump(model, model_buffer, compress=3)
-            model_buffer.seek(0)
-            self.s3_client.upload_fileobj(
-                model_buffer,
-                Bucket=self.s3_bucket,
-                Key=model_path
-            )
-        
-        # Save metadata to S3
-        self.s3_client.put_object(
-            Bucket=self.s3_bucket,
-            Key=metadata_path,
-            Body=json.dumps(metadata, indent=2)
-        )
-        logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
-    
-    def _load_model(self, complexity: str, version: str) -> "Model":
-        """
-        Load a model from storage using joblib.
-        
-        Best practices:
-        - Local: Direct file read with joblib.load
-        - S3: Download to BytesIO buffer, then load
-        
-        Args:
-            complexity: Model complexity
-            version: Version identifier
             
-        Returns:
-            Loaded model object
-        """
-        import joblib
-        from io import BytesIO
-        
-        model_path = self.path(complexity, version).model
-        
+        else:
+            # S3 mode: Serialize to BytesIO buffer first
+            with BytesIO() as model_buffer:
+                joblib.dump(model, model_buffer, compress=3)
+                model_buffer.seek(0)
+                self.s3_client.upload_fileobj(
+                    model_buffer,
+                    Bucket=self.s3_bucket,
+                    Key=model_path
+                )
+            
+            # Save metadata to S3
+            self.s3_client.put_object(
+                Bucket=self.s3_bucket,
+                Key=metadata_path,
+                Body=json.dumps(metadata, indent=2)
+            )
+            logger.info(f"Model saved to S3: s3://{self.s3_bucket}/{model_path}")
+            
+        return result
+    
+    def _load_model_path(self, model_path: str) -> "Model":
         if self.env == "local":
             # Local mode: Direct file read
             if not os.path.exists(model_path):
@@ -217,7 +230,27 @@ s3://tu-bucket/models/
             return model
         except self.s3_client.exceptions.NoSuchKey:
             raise FileNotFoundError(f"Model not found in S3: s3://{self.s3_bucket}/{model_path}")
+    
+    def _load_model(self, complexity: str, version: str) -> "Model":
+        """
+        Load a model from storage using joblib.
+        
+        Best practices:
+        - Local: Direct file read with joblib.load
+        - S3: Download to BytesIO buffer, then load
+        
+        Args:
+            complexity: Model complexity
+            version: Version identifier
+            
+        Returns:
+            Loaded model object
+        """
+        from io import BytesIO
+        
+        model_path = self.path(complexity, version).model
 
+        return self._load_model_path(model_path)
     
     def _create_version_manager(self) -> None:
         """Create version manager configuration file if it doesn't exist."""
@@ -255,17 +288,70 @@ s3://tu-bucket/models/
         """Method to get raw active version data from JSON."""
         return self._active_versions.get(complexity, {})
 
-    def get_latest_version(self, complexity: str) -> str:
+    def get_base_model(self, complexity: str) -> "Model":
+        """
+        Load the base model for a given complexity.
+        
+        This is used as a fallback when no versioned models exist.
+        The base model is stored at: models/{complexity}.pkl
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Loaded base model object
+        """
+        base_model_path = self.path(complexity).base_model
+        logger.info(f"Loading base model for {complexity} from: {base_model_path}")
+        return self._load_model_path(base_model_path)
+    
+    def get_base_metrics(self, complexity: str) -> Optional[Dict]:
+        """
+        Load base metrics for a given complexity.
+        
+        This is used as a fallback when no versioned models exist.
+        The base metrics are stored at: models/results/{complexity}.json
+        
+        Args:
+            complexity: Model complexity
+            
+        Returns:
+            Dictionary with metrics or None if not found
+        """
+        metrics_path = self.path(complexity).base_metrics_file
+        logger.info(f"Loading base metrics for {complexity} from: {metrics_path}")
+        
+        try:
+            if self.env == "local":
+                if not os.path.exists(metrics_path):
+                    logger.warning(f"Base metrics file not found: {metrics_path}")
+                    return None
+                with open(metrics_path, 'r') as f:
+                    return json.load(f)
+            
+            # S3 mode
+            try:
+                obj = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metrics_path)
+                return json.loads(obj['Body'].read())
+            except self.s3_client.exceptions.NoSuchKey:
+                logger.warning(f"Base metrics not found in S3: s3://{self.s3_bucket}/{metrics_path}")
+                return None
+        except Exception as e:
+            logger.error(f"Error loading base metrics: {e}")
+            return None
+
+    def get_latest_version(self, complexity: str) -> Optional[str]:
+        logger.info(f"Using latest version for {complexity}")
         versions = self.get_complexity_versions(complexity)
         if not versions:
-            raise ValueError(f"No versions available for complexity: {complexity}")
+            return None
         
         # Sort by version (assuming format: v_YYYY-MM-DD_HH-MM-SS)
         sorted_versions = sorted(versions, key=lambda x: x.get("version", ""), reverse=True)
         version = sorted_versions[0].get("version")
         return version
 
-    def get_active_version(self, complexity: str) -> str:
+    def get_active_version(self, complexity: str) -> Optional[str]:
         """
         Get the active version for a complexity.
         
@@ -286,22 +372,12 @@ s3://tu-bucket/models/
         
         # If no active version set, get the latest one
         if not version:
-            logger.info(f"No active version set for {complexity}, using latest version")
-            version = self.get_latest_version(complexity)
+            return self.get_latest_version(complexity)
             
-            if not version:
-                raise ValueError(f"No versions available for complexity: {complexity}")
-            
-            logger.info(f"Using latest version for {complexity}: {version}")
-        else:
-            logger.info(f"Using active version for {complexity}: {version}")
+        logger.info(f"Using active version for {complexity}: {version}")
         
         return version
 
-    def get_active_versions(self) -> dict:
-        active_versions = { complexity: self.get_active_version_data(complexity) for complexity in self.complexities }
-        return active_versions
-    
     def get_model(self, complexity: str) -> "Model":
         """
         Load the model for a complexity.
@@ -316,6 +392,8 @@ s3://tu-bucket/models/
             Loaded model object
         """
         version = self.get_active_version(complexity)
+        if not version:
+            return self.get_base_model(complexity)
         return self._load_model(complexity, version)
 
     def set_active_version(self, complexity: str, version: str, user: str = "system") -> None:
@@ -397,7 +475,7 @@ s3://tu-bucket/models/
             logger.error(f"Error getting S3 complexity versions: {e}")
             return []
 
-    def get_version_metadata(self, complexity: str, version: str) -> Optional[Dict]:
+    def get_version_metrics(self, complexity: str, version: str) -> Optional[Dict]:
         """
         Get metadata for a specific version.
         
@@ -414,11 +492,11 @@ s3://tu-bucket/models/
                 if not os.path.exists(metadata_path):
                     return None
                 with open(metadata_path, 'r') as f:
-                    return json.load(f)
+                    return json.load(f).get('metrics')
             
             # S3 mode
             metadata = self.s3_client.get_object(Bucket=self.s3_bucket, Key=metadata_path)
-            return json.loads(metadata['Body'].read())
+            return json.loads(metadata['Body'].read()).get('metrics')
         except FileNotFoundError:
             return None
         except Exception as e:
@@ -434,6 +512,35 @@ s3://tu-bucket/models/
 
     def get_active_versions(self):
         return { complexity: self.get_active_version(complexity) for complexity in self.complexities }
+
+    def get_feature_names(self):
+        """
+        Load feature names from storage.
+        
+        Returns:
+            List of feature names
+        """
+        feature_names_path = self.path().feature_names_file
+        logger.info(f"Loading feature names from: {feature_names_path}")
+        
+        if self.env == "local":
+            if not os.path.exists(feature_names_path):
+                raise FileNotFoundError(f"Feature names file not found: {feature_names_path}")
+            return joblib.load(feature_names_path)
+        
+        # S3 mode
+        from io import BytesIO
+        try:
+            with BytesIO() as buffer:
+                self.s3_client.download_fileobj(
+                    Bucket=self.s3_bucket,
+                    Key=feature_names_path,
+                    Fileobj=buffer
+                )
+                buffer.seek(0)
+                return joblib.load(buffer)
+        except self.s3_client.exceptions.NoSuchKey:
+            raise FileNotFoundError(f"Feature names not found in S3: s3://{self.s3_bucket}/{feature_names_path}")
 
 
 

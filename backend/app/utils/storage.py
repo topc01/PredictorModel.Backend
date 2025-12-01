@@ -109,8 +109,7 @@ class StorageManager:
             raise FileNotFoundError(f"S3 object not found: s3://{self.s3_bucket}/{s3_key}")
         except FileNotFoundError:
             raise FileNotFoundError(f"Local file not found: {os.path.join(self.base_dir, filename)}")
-
-    
+        
     def exists(self, filename: str) -> bool:
         """
         Check if a file exists.
