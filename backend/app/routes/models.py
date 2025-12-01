@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
 
 from app.utils.version import version_manager, ComplexityMapper
+from app.core.auth import require_role, get_current_user
+from app.models.user import UserRole
 
 router = APIRouter(
     tags=["Models"],
@@ -63,7 +65,9 @@ router = APIRouter(
         }
     }
 )
-async def get_complexities():
+async def get_complexities(
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """Get all available complexity levels."""
     labels = ComplexityMapper.get_all_labels()
     return {
@@ -126,7 +130,9 @@ async def get_complexities():
         }
     },
 )
-async def get_all_models():
+async def get_all_models(
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     return version_manager.get_versions()
 
 @router.get(
@@ -183,7 +189,10 @@ async def get_all_models():
         }
     },
 )
-async def get_models_by_complexity(complexity: str):
+async def get_models_by_complexity(
+    complexity: str,
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """Get models versions by complexity."""
     ComplexityMapper.is_valid_label(complexity)
     return version_manager.get_complexity_versions(complexity)
@@ -224,7 +233,9 @@ async def get_models_by_complexity(complexity: str):
         }
     }
 )
-async def get_active_models():
+async def get_active_models(
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """Get all active model versions."""
     return version_manager.get_active_versions()
 
@@ -248,7 +259,10 @@ async def get_active_models():
     **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
-async def get_active_model_by_complexity(complexity: str):
+async def get_active_model_by_complexity(
+    complexity: str,
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """Get active version for a specific complexity (or latest if none set)."""
     # Validate complexity
     ComplexityMapper.is_valid_label(complexity)
@@ -303,7 +317,11 @@ async def get_active_model_by_complexity(complexity: str):
     **Validación:** Usa `ComplexityMapper.is_valid_label()` automáticamente.
     """,
 )
-async def get_version_details(complexity: str, version: str):
+async def get_version_details(
+    complexity: str,
+    version: str,
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """Get metadata for a specific version."""
     # Validate complexity
     ComplexityMapper.is_valid_label(complexity)
@@ -365,7 +383,8 @@ async def get_version_details(complexity: str, version: str):
 )
 async def activate_model_version(
     complexity: str,
-    request: dict = Body(..., example={"version": "v1_2024-11-28_01-00-00", "user": "admin@example.com"})
+    request: dict = Body(..., example={"version": "v1_2024-11-28_01-00-00", "user": "admin@example.com"}),
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
 ):
     """Activate a specific model version."""
     # Validate complexity
@@ -426,7 +445,8 @@ async def activate_models_batch(
             "Baja": "v2_2024-11-27_10-00-00"
         },
         "user": "admin@example.com"
-    })
+    }),
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
 ):
     """Activate multiple model versions at once."""
     versions_dict = request.get("versions", {})

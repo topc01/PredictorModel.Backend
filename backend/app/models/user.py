@@ -10,19 +10,20 @@ from app.core.redis import get_redis_client
 class UserRole(str, Enum):
     """User role enumeration."""
     ADMIN = "admin"
-    USER = "user"
+    VIEWER = "viewer"
 
 
 class User(BaseModel):
     """User model stored in Redis."""
     email: EmailStr
     name: str
-    role: UserRole = UserRole.USER
+    role: UserRole = UserRole.VIEWER
+    auth0_user_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
     @classmethod
-    def create(cls, email: str, name: str, role: UserRole = UserRole.USER) -> "User":
+    def create(cls, email: str, name: str, role: UserRole = UserRole.VIEWER, auth0_user_id: Optional[str] = None) -> "User":
         """Create a new user and save to Redis."""
         redis_client = get_redis_client()
         
@@ -35,6 +36,7 @@ class User(BaseModel):
             email=email,
             name=name,
             role=role,
+            auth0_user_id=auth0_user_id,
             created_at=now,
             updated_at=now
         )
@@ -47,16 +49,17 @@ class User(BaseModel):
         self.updated_at = datetime.utcnow()
         
         # Store as hash
-        redis_client.hset(
-            f"user:{self.email}",
-            mapping={
-                "email": self.email,
-                "name": self.name,
-                "role": self.role.value,
-                "created_at": self.created_at.isoformat(),
-                "updated_at": self.updated_at.isoformat()
-            }
-        )
+        mapping = {
+            "email": self.email,
+            "name": self.name,
+            "role": self.role.value,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat()
+        }
+        if self.auth0_user_id:
+            mapping["auth0_user_id"] = self.auth0_user_id
+        
+        redis_client.hset(f"user:{self.email}", mapping=mapping)
         
         # Add to users set for listing
         redis_client.sadd("users:all", self.email)
@@ -74,6 +77,7 @@ class User(BaseModel):
             email=data["email"],
             name=data["name"],
             role=UserRole(data["role"]),
+            auth0_user_id=data.get("auth0_user_id"),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"])
         )
@@ -111,6 +115,31 @@ class User(BaseModel):
         redis_client = get_redis_client()
         redis_client.delete(f"user:{self.email}")
         redis_client.srem("users:all", self.email)
+    
+    @classmethod
+    def get_by_auth0_id(cls, auth0_user_id: str) -> Optional["User"]:
+        """Get user from Redis by Auth0 user ID."""
+        redis_client = get_redis_client()
+        emails = list(redis_client.smembers("users:all"))
+        
+        for email in emails:
+            user = cls.get(email)
+            if user and user.auth0_user_id == auth0_user_id:
+                return user
+        return None
+    
+    @classmethod
+    def sync_from_auth0(cls, auth0_user_id: str, email: str, name: str, role: UserRole) -> "User":
+        """Create or update user from Auth0 data."""
+        existing_user = cls.get(email)
+        if existing_user:
+            existing_user.name = name
+            existing_user.role = role
+            existing_user.auth0_user_id = auth0_user_id
+            existing_user.save()
+            return existing_user
+        else:
+            return cls.create(email=email, name=name, role=role, auth0_user_id=auth0_user_id)
 
 
 __all__ = ["User", "UserRole"]
