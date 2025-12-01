@@ -45,13 +45,12 @@ def save_prophet_model(model, metrics, complexity, df_prophet):
         raise IOError(f"Error saving model with version manager: {str(e)}")
 
 def load_data(complexity: str):
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    DATA_PATH = BASE_DIR / "data" / "dataset (2).csv" ## cambiar por el real
+    # BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    # DATA_PATH = BASE_DIR / "data" / "dataset (2).csv" ## cambiar por el real
     
-    df = pd.read_csv(DATA_PATH)
+    # df = pd.read_csv(DATA_PATH)
 
-    # df = storage_manager.load_csv("dataset.csv")
-    print(df.tail())
+    df = storage_manager.load_csv("dataset.csv")
     #print("Data loaded for complexity:", df.head())
     # df = pd.read_csv(DATA_PATH)
 
