@@ -413,8 +413,6 @@ async def get_last_date():
       )
     
     # sumar una semana completa
-    last_date = last_date + pd.Timedelta(weeks=1)
-    last_date = last_date.date() 
   except HTTPException:
     # Re-raise HTTPException as-is
     raise
