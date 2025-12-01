@@ -118,7 +118,6 @@ def retrain_prophet_model(complexity: str):
 
     forecast = model.predict(future)
 
-    forecast = forecast[forecast['ds'].isin(df_prophet['ds'])]
     merged = df_prophet.merge(forecast[['ds', 'yhat']], on='ds')
     merged = merged.dropna()
     y_true = merged['y']

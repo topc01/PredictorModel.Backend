@@ -60,35 +60,6 @@ def predict_prophet_model(model, periods: int = 1):
     forecast = model.predict(future)
     return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(periods)
 
-def predict_random_forest(model, X_pred):
-    """
-    Realiza una predicción utilizando un modelo Random Forest.
-    
-    Args:
-        model: Modelo Random Forest entrenado.
-        X_pred: DataFrame con las características para la predicción.
-        
-    Returns:
-        Diccionario con la predicción y el intervalo de confianza.
-    """
-    y_pred = model.predict(X_pred)
-
-    tree_preds = np.array([tree.predict(X_pred) for tree in model.estimators_])  # matriz (n_trees, n_muestras)
-
-    preds_ultimo = tree_preds[:, -1]
-
-    mean_pred = np.mean(preds_ultimo)
-    std_pred = np.std(preds_ultimo)
-
-    lower = mean_pred - 1.96 * std_pred
-    upper = mean_pred + 1.96 * std_pred
-
-    return {
-        "prediccion": float(y_pred[-1]),
-        "intervalo_confianza": [lower, upper]
-    }
-
-
 def predict(complexity: str):
     """
     Realiza una predicción para una complejidad específica.
