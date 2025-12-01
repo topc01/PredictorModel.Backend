@@ -12,7 +12,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Schema for creating a user."""
-    role: UserRole = UserRole.USER
+    role: UserRole = UserRole.VIEWER
 
 
 class UserUpdate(BaseModel):

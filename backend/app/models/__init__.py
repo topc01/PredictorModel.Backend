@@ -1,4 +1,4 @@
 """Database models."""
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 
-__all__ = ["User", "UserRole"]
+__all__ = ["UserRole"]

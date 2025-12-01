@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile, Depends
 import os
 from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
+from app.core.auth import require_role, get_current_user
+from app.models.user import UserRole
 
 router = APIRouter(
     tags=["Retrain"],
@@ -43,7 +45,9 @@ router = APIRouter(
         }
     },
 )
-async def retrain_endpoint():
+async def retrain_endpoint(
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
     try:
         from app.retrain import retrain_model
         retrain_model()
@@ -93,7 +97,9 @@ async def retrain_endpoint():
         }
     },
 )
-async def retrain_endpoint():
+async def retrain_endpoint(
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
     try:
         from app.retrain import retrain_model
         retrain_model()
@@ -155,7 +161,9 @@ async def retrain_endpoint():
         }
     },
 )
-async def get_all_models():
+async def get_all_models(
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     try:
         from app.retrain.retrain import get_prophet_models
         from app.utils.complexities import ComplexityMapper
