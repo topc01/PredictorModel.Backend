@@ -36,10 +36,20 @@ async def get_current_user_info(
         try:
             auth0_user = auth0_client.get_user_by_email(email)
             if auth0_user:
+                # Check app_metadata first, then user_metadata as fallback
                 app_metadata = auth0_user.get("app_metadata", {})
-                role_str = app_metadata.get("role", "viewer")
-                role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
-        except Exception:
+                user_metadata = auth0_user.get("user_metadata", {})
+                
+                # Try app_metadata first
+                role_str = app_metadata.get("role")
+                if not role_str:
+                    # Fallback to user_metadata
+                    role_str = user_metadata.get("role")
+                
+                if role_str:
+                    role = UserRole.ADMIN if role_str.lower() == "admin" else UserRole.VIEWER
+        except Exception as e:
+            print(f"Error getting role from Auth0: {e}")
             pass
         
         user = User.sync_from_auth0(
@@ -71,10 +81,20 @@ async def sync_user(
     try:
         auth0_user = auth0_client.get_user_by_email(email)
         if auth0_user:
+            # Check app_metadata first, then user_metadata as fallback
             app_metadata = auth0_user.get("app_metadata", {})
-            role_str = app_metadata.get("role", "viewer")
-            role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
-    except Exception:
+            user_metadata = auth0_user.get("user_metadata", {})
+            
+            # Try app_metadata first
+            role_str = app_metadata.get("role")
+            if not role_str:
+                # Fallback to user_metadata
+                role_str = user_metadata.get("role")
+            
+            if role_str:
+                role = UserRole.ADMIN if role_str.lower() == "admin" else UserRole.VIEWER
+    except Exception as e:
+        print(f"Error getting role from Auth0: {e}")
         pass
     
     user = User.sync_from_auth0(

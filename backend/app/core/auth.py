@@ -55,10 +55,12 @@ def verify_token(token: str) -> dict:
     """Verify and decode JWT token."""
     try:
         rsa_key = get_rsa_key(token)
+        # Convert string to list (supports comma-separated or single algorithm)
+        algorithms = [alg.strip() for alg in settings.auth0_algorithms.split(',')]
         payload = jwt.decode(
             token,
             rsa_key,
-            algorithms=settings.auth0_algorithms,
+            algorithms=algorithms,
             audience=settings.auth0_api_audience,
             issuer=f"https://{settings.auth0_domain}/"
         )
