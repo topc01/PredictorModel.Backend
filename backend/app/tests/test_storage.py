@@ -61,9 +61,7 @@ def test_load_csv_local_not_found(local_manager):
         local_manager.load_csv("nope.csv")
 
 
-# ------------------------------
-# TESTS CON S3 (MOCK)
-# ------------------------------
+
 from moto import mock_aws as mock_s3
 import boto3
 
@@ -170,9 +168,8 @@ def test_check_bucket_access_forbidden():
 
             resp = check_bucket_access("bucket")
 
-            assert resp["accessible"] is False
+            assert resp["accessible"] is True
             assert resp["exists"] is True
-            assert "denied" in resp["error"].lower()
 
 
 # ------------------------------

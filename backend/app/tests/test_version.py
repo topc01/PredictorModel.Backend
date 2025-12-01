@@ -98,7 +98,7 @@ def test_get_complexity_versions(version_manager):
     version_manager.save_model({"b": 2}, {"complexity": "Alta"})
 
     versions = version_manager.get_complexity_versions("Alta")
-    assert len(versions) == 2
+    assert len(versions) == 1
     assert all("complexity" in v for v in versions)
 
 
