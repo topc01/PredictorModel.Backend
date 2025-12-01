@@ -6,7 +6,8 @@ from jose.utils import base64url_decode
 import httpx
 from typing import Optional
 from app.core.config import settings
-from app.models.user import User, UserRole
+from app.models.user import UserRole
+from app.core.auth0_client import auth0_client
 
 security = HTTPBearer()
 
@@ -79,15 +80,60 @@ def get_current_user(
     token = credentials.credentials
     payload = verify_token(token)
     
-    # Extract user info from token
-    email = payload.get("email") or payload.get("https://email")
+    # DEBUG: Log token payload
+    print("=" * 50)
+    print("DEBUG - Token payload keys:", list(payload.keys()))
+    print("DEBUG - Full token payload:", payload)
+    print("=" * 50)
+    
+    # Extract user info from token - try multiple possible locations
+    email = (
+        payload.get("email") or 
+        payload.get("https://email") or
+        payload.get("https://your-namespace/email")
+    )
+    
     sub = payload.get("sub")  # Auth0 user ID
     
+    # DEBUG: Log email extraction attempts
+    print(f"DEBUG - Email from 'email': {payload.get('email')}")
+    print(f"DEBUG - Email from 'https://email': {payload.get('https://email')}")
+    print(f"DEBUG - Sub (user_id): {sub}")
+    
+    # If sub is an email (contains @), use it as fallback
+    if not email and sub and "@" in sub:
+        email = sub
+        print(f"DEBUG - Using sub as email: {email}")
+    
+    # If still no email, try to get it from Auth0 Management API using user_id
+    if not email and sub:
+        print(f"DEBUG - Attempting to get email from Auth0 Management API using sub: {sub}")
+        try:
+            from app.core.auth0_client import auth0_client
+            # Extract user_id from sub (format: auth0|user_id or just user_id)
+            user_id = sub
+            if "|" in user_id:
+                user_id = user_id.split("|")[1]
+            
+            # Get user from Auth0 Management API
+            url = f"https://{auth0_client.domain}/api/v2/users/{sub}"
+            import httpx
+            response = httpx.get(url, headers=auth0_client._get_headers())
+            if response.status_code == 200:
+                auth0_user = response.json()
+                email = auth0_user.get("email")
+                print(f"DEBUG - Got email from Auth0 Management API: {email}")
+        except Exception as e:
+            print(f"DEBUG - Error getting email from Auth0 Management API: {e}")
+    
     if not email:
+        print("DEBUG - Email not found in any expected location")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email not found in token"
+            detail=f"Email not found in token. Available keys: {list(payload.keys())}. Make sure to include 'email' in the token scopes or ensure the user exists in Auth0."
         )
+    
+    print(f"DEBUG - Final email extracted: {email}")
     
     return {
         "email": email,
@@ -122,16 +168,22 @@ def get_user_role_from_token(payload: dict) -> UserRole:
 def get_current_user_with_role(
     current_user: dict = Depends(get_current_user)
 ) -> tuple[dict, UserRole]:
-    """Get current user with role from token or Redis."""
+    """Get current user with role from Auth0 Management API."""
     payload = current_user["payload"]
+    email = current_user["email"]
     
-    # Try to get role from token
+    # Try to get role from token first
     role = get_user_role_from_token(payload)
     
-    # Try to get user from Redis to get actual role
-    user = User.get(current_user["email"])
-    if user:
-        role = user.role
+    # If role not in token, get from Auth0 Management API
+    if role == UserRole.VIEWER:  # Default, might not be accurate
+        try:
+            role_str = auth0_client.get_user_role(email)
+            if role_str:
+                role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
+        except Exception as e:
+            print(f"Error getting role from Auth0 Management API: {e}")
+            # Keep default VIEWER role on error
     
     return current_user, role
 

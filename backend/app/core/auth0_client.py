@@ -109,6 +109,56 @@ class Auth0ManagementClient:
         response = httpx.patch(url, json=payload, headers=self._get_headers())
         response.raise_for_status()
         return response.json()
+    
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user by Auth0 user ID."""
+        url = f"https://{self.domain}/api/v2/users/{user_id}"
+        
+        response = httpx.get(url, headers=self._get_headers())
+        response.raise_for_status()
+        return response.json()
+    
+    def get_user_role(self, email: str) -> Optional[str]:
+        """Get user role from Auth0 app_metadata."""
+        try:
+            auth0_user = self.get_user_by_email(email)
+            if auth0_user:
+                # Check app_metadata first, then user_metadata as fallback
+                app_metadata = auth0_user.get("app_metadata", {})
+                user_metadata = auth0_user.get("user_metadata", {})
+                
+                # Try app_metadata first
+                role = app_metadata.get("role")
+                if not role:
+                    # Fallback to user_metadata
+                    role = user_metadata.get("role")
+                
+                return role.lower() if role else None
+        except Exception as e:
+            print(f"Error getting user role from Auth0: {e}")
+            return None
+        return None
+    
+    def get_user_role_by_id(self, user_id: str) -> Optional[str]:
+        """Get user role from Auth0 app_metadata using user ID."""
+        try:
+            auth0_user = self.get_user_by_id(user_id)
+            if auth0_user:
+                # Check app_metadata first, then user_metadata as fallback
+                app_metadata = auth0_user.get("app_metadata", {})
+                user_metadata = auth0_user.get("user_metadata", {})
+                
+                # Try app_metadata first
+                role = app_metadata.get("role")
+                if not role:
+                    # Fallback to user_metadata
+                    role = user_metadata.get("role")
+                
+                return role.lower() if role else None
+        except Exception as e:
+            print(f"Error getting user role from Auth0: {e}")
+            return None
+        return None
 
 
 # Global instance
