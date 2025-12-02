@@ -15,7 +15,6 @@ env:
   ECS_CLUSTER: predictor-model-prod-cluster
   ECS_SERVICE: predictor-model-prod-backend-service
   CONTAINER_NAME: backend
-  ENV: prod
 
 permissions:
   contents: read
