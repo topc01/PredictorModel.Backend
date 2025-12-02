@@ -107,7 +107,9 @@ jobs:
             'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
             .containerDefinitions |= map(
               if .name == "backend" or .name == "celery-worker" then
-                .environment += [
+                # Filter out invalid environment variables (keep only valid ones)
+                .environment = ([.environment[]? | select(.value | type == "string")] // []) +
+                [
                   {"name": "AUTH0_DOMAIN", "value": $AUTH0_DOMAIN},
                   {"name": "AUTH0_API_AUDIENCE", "value": $AUTH0_API_AUDIENCE},
                   {"name": "AUTH0_ALGORITHMS", "value": $AUTH0_ALGORITHMS},
