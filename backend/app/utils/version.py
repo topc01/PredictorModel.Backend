@@ -544,7 +544,7 @@ s3://tu-bucket/models/
 
 
 
-_s3_bucket = os.getenv("S3_DATA_BUCKET", None)
+_s3_bucket = os.getenv("S3_FILES_BUCKET", None)
 _env = os.getenv("ENV", "local")
 
 version_manager = VersionManager(
