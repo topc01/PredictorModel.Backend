@@ -206,7 +206,9 @@ def preparar_datos_por_complejidad(df_original, complejidad_valor):
     # TODO LO DEMÁS DEL PIPELINE IGUAL — solo agrego verbose
     print("[INFO] Calculando semana del año...")
     df_filtrado['fecha_ingreso_completa'] = pd.to_datetime(df_filtrado['fecha ingreso completa'], errors='coerce')
-    df_filtrado['semana_año'] = df_filtrado['fecha_ingreso_completa'].dt.strftime('%Y-%U')
+    iso = df_filtrado['fecha_ingreso_completa'].dt.isocalendar()
+    df_filtrado['semana_año'] = (iso['year'].astype(str) + '-' + iso['week'].astype(str).str.zfill(2))
+
 
     print("[INFO] Calculando conteos...")
     conteo_total = df_filtrado.groupby('semana_año').size().reset_index(name='demanda_pacientes')
