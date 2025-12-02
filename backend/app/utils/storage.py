@@ -206,6 +206,9 @@ class StorageManager:
             semana_año=semana_año,
         )
 
+    def list_files(self):
+        return self.s3_client.list_objects_v2(Bucket=self.s3_bucket)
+
 # Global storage manager instance
 # Can be configured via environment variables
 _s3_bucket = os.getenv("S3_DATA_BUCKET", None)
