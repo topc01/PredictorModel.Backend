@@ -402,19 +402,19 @@ async def pipeline_status(
        "files": [
          {
            "name": "dataset",
-           "path": "data/dataset.csv",
+           "path": "dataset.csv",
            "location": "s3",
            "exists": False
          },
          {
            "name": "predictions",
-           "path": "data/predictions.csv",
+           "path": "predictions.csv",
            "location": "s3",
            "exists": False
          },
          {
            "name": "weekly",
-           "path": "data/weekly.csv",
+           "path": "weekly.csv",
            "location": "s3",
            "exists": False
          },
