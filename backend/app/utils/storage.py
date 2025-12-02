@@ -67,7 +67,7 @@ class StorageManager:
         
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
-        s3_key = self.base_dir + filename
+        s3_key = f"{self.base_dir}/{filename}"
         if self.env == "local":
             # Always use data/ directory for local storage
             local_path = os.path.join(self.base_dir, filename)
@@ -97,7 +97,7 @@ class StorageManager:
             FileNotFoundError: If file doesn't exist
         """
         
-        s3_key = self.base_dir + filename
+        s3_key = f"{self.base_dir}/{filename}"
         try:
             if self.env == "local":
                 # Always use data/ directory for local storage
@@ -121,7 +121,7 @@ class StorageManager:
         Returns:
             True if file exists, False otherwise
         """
-        s3_key = self.base_dir + filename
+        s3_key = f"{self.base_dir}/{filename}"
         try:
             if self.env == "local":
                 logger.info(f"Checking local file: {os.path.join(self.base_dir, filename)}")
