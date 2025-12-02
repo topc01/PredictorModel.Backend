@@ -78,71 +78,17 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "✅ Images pushed successfully"
 
-      - name: Update ECS task definition with environment variables
-        id: update-task-def
-        env:
-          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_API_AUDIENCE: ${{ secrets.AUTH0_API_AUDIENCE }}
-          AUTH0_ALGORITHMS: ${{ secrets.AUTH0_ALGORITHMS }}
-          AUTH0_MANAGEMENT_CLIENT_ID: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_ID }}
-          AUTH0_MANAGEMENT_CLIENT_SECRET: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_SECRET }}
-          AUTH0_MANAGEMENT_DOMAIN: ${{ secrets.AUTH0_MANAGEMENT_DOMAIN }}
-          ENVIRONMENT: ${{ env.ENV }}
+      - name: Update ECS service with task definition revision 6
         run: |
-          echo "Fetching current task definition..."
-          TASK_DEFINITION=$(aws ecs describe-task-definition \
-            --task-definition predictor-model-prod-backend \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskDefinition' \
-            --output json)
-          
-          echo "Updating task definition with environment variables..."
-          NEW_TASK_DEF=$(echo $TASK_DEFINITION | jq --arg AUTH0_DOMAIN "$AUTH0_DOMAIN" \
-            --arg AUTH0_API_AUDIENCE "$AUTH0_API_AUDIENCE" \
-            --arg AUTH0_ALGORITHMS "$AUTH0_ALGORITHMS" \
-            --arg AUTH0_MANAGEMENT_CLIENT_ID "$AUTH0_MANAGEMENT_CLIENT_ID" \
-            --arg AUTH0_MANAGEMENT_CLIENT_SECRET "$AUTH0_MANAGEMENT_CLIENT_SECRET" \
-            --arg AUTH0_MANAGEMENT_DOMAIN "$AUTH0_MANAGEMENT_DOMAIN" \
-            --arg ENV "$ENVIRONMENT" \
-            'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
-            .containerDefinitions |= map(
-              if .name == "backend" or .name == "celery-worker" then
-                # Filter out invalid environment variables (keep only valid ones)
-                .environment = ([.environment[]? | select(.value | type == "string")] // []) +
-                [
-                  {"name": "AUTH0_DOMAIN", "value": $AUTH0_DOMAIN},
-                  {"name": "AUTH0_API_AUDIENCE", "value": $AUTH0_API_AUDIENCE},
-                  {"name": "AUTH0_ALGORITHMS", "value": $AUTH0_ALGORITHMS},
-                  {"name": "AUTH0_MANAGEMENT_CLIENT_ID", "value": $AUTH0_MANAGEMENT_CLIENT_ID},
-                  {"name": "AUTH0_MANAGEMENT_CLIENT_SECRET", "value": $AUTH0_MANAGEMENT_CLIENT_SECRET},
-                  {"name": "AUTH0_MANAGEMENT_DOMAIN", "value": $AUTH0_MANAGEMENT_DOMAIN},
-                  {"name": "ENV", "value": $ENV}
-                ]
-              else
-                .
-              end
-            )')
-          
-          echo "Registering new task definition..."
-          NEW_TASK_INFO=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_TASK_DEF" \
-            --region ${{ env.AWS_REGION }})
-          
-          NEW_REVISION=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.revision')
-          echo "task_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
-          echo "✅ Registered new task definition revision: $NEW_REVISION"
-
-      - name: Update ECS service with new task definition
-        run: |
-          echo "Updating ECS service to use new task definition..."
+          echo "Updating ECS service to use task definition revision 6 (with Auth0 variables)..."
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
-            --task-definition predictor-model-prod-backend:${{ steps.update-task-def.outputs.task_revision }} \
+            --task-definition predictor-model-prod-backend:6 \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "✅ Service update triggered successfully"
+          echo "✅ Deployment triggered successfully"
 
       - name: Wait for service stability
         run: |
