@@ -24,6 +24,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "https://main.d12abg5dtejald.amplifyapp.com",
         "https://develop.d12abg5dtejald.amplifyapp.com",
+        "https://main.d1aakiwbb761l0.amplifyapp.com"
     ]
     
     # AWS (optional)
