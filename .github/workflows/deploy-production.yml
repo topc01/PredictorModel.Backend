@@ -15,6 +15,7 @@ env:
   ECS_CLUSTER: predictor-model-prod-cluster
   ECS_SERVICE: predictor-model-prod-backend-service
   CONTAINER_NAME: backend
+  ENV: prod
 
 permissions:
   contents: read
@@ -136,10 +137,11 @@ jobs:
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
+            --task-definition predictor-model-prod-backend:${{ steps.update-task-def.outputs.task_revision }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "✅ Deployment triggered successfully"
+          echo "✅ Service update triggered successfully"
 
       - name: Wait for service stability
         run: |
@@ -157,6 +159,7 @@ jobs:
           echo "🎉 Deployment completed successfully!"
           echo "Backend Image: ${{ steps.build-image.outputs.image }}"
           echo "Celery Worker Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_CELERY }}:${{ github.sha }}"
+          echo "Task Definition Revision: ${{ steps.update-task-def.outputs.task_revision }}"
           echo "Cluster: ${{ env.ECS_CLUSTER }}"
           echo "Service: ${{ env.ECS_SERVICE }}"
           echo "Region: ${{ env.AWS_REGION }}"

@@ -124,9 +124,12 @@ class StorageManager:
         s3_key = filename
         try:
             if self.env == "local":
+                logger.info(f"Checking local file: {os.path.join(self.base_dir, filename)}")
                 # Always use data/ directory for local storage
                 local_path = os.path.join(self.base_dir, filename)
                 return os.path.exists(local_path)
+            
+            logger.info(f"Checking S3 file: s3://{self.s3_bucket}/{s3_key}")
             self.s3_client.head_object(Bucket=self.s3_bucket, Key=s3_key)
             return True
         except:
