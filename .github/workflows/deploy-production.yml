@@ -79,7 +79,7 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "✅ Images pushed successfully"
 
-      - name: Update ECS task definition with Auth0 variables
+      - name: Update ECS task definition with environment variables
         id: update-task-def
         env:
           AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
@@ -88,6 +88,7 @@ jobs:
           AUTH0_MANAGEMENT_CLIENT_ID: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_ID }}
           AUTH0_MANAGEMENT_CLIENT_SECRET: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_SECRET }}
           AUTH0_MANAGEMENT_DOMAIN: ${{ secrets.AUTH0_MANAGEMENT_DOMAIN }}
+          ENVIRONMENT: ${{ env.ENV }}
         run: |
           echo "Fetching current task definition..."
           TASK_DEFINITION=$(aws ecs describe-task-definition \
@@ -96,13 +97,14 @@ jobs:
             --query 'taskDefinition' \
             --output json)
           
-          echo "Updating task definition with Auth0 environment variables..."
+          echo "Updating task definition with environment variables..."
           NEW_TASK_DEF=$(echo $TASK_DEFINITION | jq --arg AUTH0_DOMAIN "$AUTH0_DOMAIN" \
             --arg AUTH0_API_AUDIENCE "$AUTH0_API_AUDIENCE" \
             --arg AUTH0_ALGORITHMS "$AUTH0_ALGORITHMS" \
             --arg AUTH0_MANAGEMENT_CLIENT_ID "$AUTH0_MANAGEMENT_CLIENT_ID" \
             --arg AUTH0_MANAGEMENT_CLIENT_SECRET "$AUTH0_MANAGEMENT_CLIENT_SECRET" \
             --arg AUTH0_MANAGEMENT_DOMAIN "$AUTH0_MANAGEMENT_DOMAIN" \
+            --arg ENV "$ENVIRONMENT" \
             'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
             .containerDefinitions |= map(
               if .name == "backend" or .name == "celery-worker" then
@@ -112,7 +114,8 @@ jobs:
                   {"name": "AUTH0_ALGORITHMS", "value": $AUTH0_ALGORITHMS},
                   {"name": "AUTH0_MANAGEMENT_CLIENT_ID", "value": $AUTH0_MANAGEMENT_CLIENT_ID},
                   {"name": "AUTH0_MANAGEMENT_CLIENT_SECRET", "value": $AUTH0_MANAGEMENT_CLIENT_SECRET},
-                  {"name": "AUTH0_MANAGEMENT_DOMAIN", "value": $AUTH0_MANAGEMENT_DOMAIN}
+                  {"name": "AUTH0_MANAGEMENT_DOMAIN", "value": $AUTH0_MANAGEMENT_DOMAIN},
+                  {"name": "ENV", "value": $ENV}
                 ]
               else
                 .

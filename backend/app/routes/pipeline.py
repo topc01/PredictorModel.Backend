@@ -1,11 +1,13 @@
 """Pipeline processing routes."""
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, File, UploadFile, Depends
 from pydantic import BaseModel
 import json
 
 from app.core.redis import get_redis_client, get_async_redis_client
 from app.tasks import full_pipeline_task, process_excel_task, process_weekly_task
 from celery.result import AsyncResult
+from app.core.auth import require_role
+from app.models.user import UserRole
 
 router = APIRouter(tags=["pipeline"])
 
@@ -31,7 +33,10 @@ class TaskStatusResponse(BaseModel):
 
 
 @router.post("/start", response_model=PipelineResponse, status_code=status.HTTP_202_ACCEPTED)
-async def start_pipeline(request: PipelineRequest):
+async def start_pipeline(
+    request: PipelineRequest,
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
     """
     Start asynchronous pipeline processing.
     
@@ -50,7 +55,10 @@ async def start_pipeline(request: PipelineRequest):
     )
 
 @router.post("/process-excel", response_model=PipelineResponse, status_code=status.HTTP_202_ACCEPTED)
-async def process_excel(file: UploadFile = File(..., description="Excel file with historical hospital data")):
+async def process_excel(
+    file: UploadFile = File(..., description="Excel file with historical hospital data"),
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
     """
     Start asynchronous dataset processing from Excel file.
     
@@ -95,7 +103,10 @@ async def process_excel(file: UploadFile = File(..., description="Excel file wit
 
 
 @router.post("/process-weekly", response_model=PipelineResponse, status_code=status.HTTP_202_ACCEPTED)
-async def process_weekly(file: UploadFile = File(..., description="Excel file with weekly hospital data")):
+async def process_weekly(
+    file: UploadFile = File(..., description="Excel file with weekly hospital data"),
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
     """
     Start asynchronous weekly data processing from Excel file.
     
@@ -164,7 +175,10 @@ async def process_weekly(file: UploadFile = File(..., description="Excel file wi
 
 
 @router.get("/status/{task_id}", response_model=TaskStatusResponse)
-async def get_task_status(task_id: str):
+async def get_task_status(
+    task_id: str,
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """
     Get the current status of a pipeline task.
     
@@ -261,7 +275,10 @@ async def stream_task_status(websocket: WebSocket, task_id: str):
 
 
 @router.get("/result/{task_id}")
-async def get_task_result(task_id: str):
+async def get_task_result(
+    task_id: str,
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """
     Get the final result of a completed pipeline task.
     
