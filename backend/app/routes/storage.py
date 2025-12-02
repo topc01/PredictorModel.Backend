@@ -211,3 +211,7 @@ async def delete_week_by_date(payload: WeekDeleteByDateRequest = Body(...)):
         "date": payload.date,
         "rows_removed": removed,
     }
+
+@router.get('/all', summary="Listar archivos en S3")
+async def list_files():
+    return storage_manager.list_files()
