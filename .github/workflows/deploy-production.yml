@@ -32,6 +32,7 @@ jobs:
           uv run pytest --cov=app --cov-report=term-missing -v
 
   deploy:
+    if: false
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment: production
@@ -78,13 +79,84 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "✅ Images pushed successfully"
 
-      - name: Update ECS service with task definition revision 6
+      - name: Get current task definition
+        id: get-task-def
         run: |
-          echo "Updating ECS service to use task definition revision 6 (with Auth0 variables)..."
+          echo "Fetching current task definition..."
+          aws ecs describe-task-definition \
+            --task-definition predictor-model-prod-backend \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskDefinition' \
+            --output json > task-def.json
+          
+          echo "✅ Task definition fetched"
+
+      - name: Update task definition with Auth0 variables
+        id: update-task-def
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_API_AUDIENCE: ${{ secrets.AUTH0_API_AUDIENCE }}
+          AUTH0_MANAGEMENT_CLIENT_ID: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_ID }}
+          AUTH0_MANAGEMENT_CLIENT_SECRET: ${{ secrets.AUTH0_MANAGEMENT_CLIENT_SECRET }}
+          AUTH0_MANAGEMENT_DOMAIN: ${{ secrets.AUTH0_MANAGEMENT_DOMAIN }}
+          AUTH0_ALGORITHMS: ${{ secrets.AUTH0_ALGORITHMS }}
+        run: |
+          echo "Injecting Auth0 environment variables into task definition..."
+          
+          # Use default values if optional secrets are not set
+          AUTH0_ALGORITHMS="${AUTH0_ALGORITHMS:-RS256}"
+          AUTH0_MANAGEMENT_DOMAIN="${AUTH0_MANAGEMENT_DOMAIN:-$AUTH0_DOMAIN}"
+          
+          # Read the task definition and inject Auth0 variables into both backend and celery-worker containers
+          cat task-def.json | jq --arg domain "$AUTH0_DOMAIN" \
+            --arg audience "$AUTH0_API_AUDIENCE" \
+            --arg algorithms "$AUTH0_ALGORITHMS" \
+            --arg mgmt_client_id "$AUTH0_MANAGEMENT_CLIENT_ID" \
+            --arg mgmt_client_secret "$AUTH0_MANAGEMENT_CLIENT_SECRET" \
+            --arg mgmt_domain "$AUTH0_MANAGEMENT_DOMAIN" \
+            '
+            # Remove fields that are not needed for registration
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+            
+            # Update environment variables for all containers (backend and celery-worker)
+            .containerDefinitions |= map(
+              if .name == "backend" or .name == "celery-worker" then
+                .environment += [
+                  {"name": "AUTH0_DOMAIN", "value": $domain},
+                  {"name": "AUTH0_API_AUDIENCE", "value": $audience},
+                  {"name": "AUTH0_ALGORITHMS", "value": $algorithms},
+                  {"name": "AUTH0_MANAGEMENT_CLIENT_ID", "value": $mgmt_client_id},
+                  {"name": "AUTH0_MANAGEMENT_CLIENT_SECRET", "value": $mgmt_client_secret},
+                  {"name": "AUTH0_MANAGEMENT_DOMAIN", "value": $mgmt_domain}
+                ]
+              else
+                .
+              end
+            )
+            ' > updated-task-def.json
+          
+          echo "✅ Auth0 variables injected successfully"
+
+      - name: Register new task definition
+        id: register-task-def
+        run: |
+          echo "Registering new task definition..."
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://updated-task-def.json \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          
+          echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "✅ Task definition registered: $TASK_DEF_ARN"
+
+      - name: Update ECS service
+        run: |
+          echo "Updating ECS service with new task definition..."
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
-            --task-definition predictor-model-prod-backend:6 \
+            --task-definition ${{ steps.register-task-def.outputs.task_definition_arn }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
