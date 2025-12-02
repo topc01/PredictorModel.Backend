@@ -211,7 +211,7 @@ class StorageManager:
 
 # Global storage manager instance
 # Can be configured via environment variables
-_s3_bucket = os.getenv("S3_DATA_BUCKET", None)
+_s3_bucket = os.getenv("S3_FILES_BUCKET", None)
 _env = os.getenv("ENV", "prod")
 
 storage_manager = StorageManager(
