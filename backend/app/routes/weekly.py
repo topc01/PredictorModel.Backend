@@ -5,8 +5,9 @@ import pandas as pd
 import io
 from ..pipeline import preparar_datos_prediccion_global
 from ..types import WeeklyData
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..utils.storage import storage_manager
+from ..utils.complexities import ComplexityMapper
 
 router = APIRouter(
     tags=["Weekly Data"],
@@ -26,7 +27,7 @@ class WeeklyDataResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "message": "Datos recibidos correctamente",
-                "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
+                "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria", "maternidad", "intepediatrico"],
                 "data": {
                     "alta": {
                         "demanda_pacientes": 50,
@@ -78,7 +79,7 @@ class WeeklyDataResponse(BaseModel):
                 "application/json": {
                     "example": {
                         "message": "Datos recibidos correctamente",
-                        "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria"],
+                        "complejidades_recibidas": ["alta", "baja", "media", "neonatología", "pediatria", "maternidad", "intepediatrico"],
                         "data": {
                             "alta": {
                                 "demanda_pacientes": 50,
@@ -239,6 +240,11 @@ async def upload_data(
         contents = await file.read()
         
         df = pd.read_excel(io.BytesIO(contents))
+        # cambia el timestamp a string, como lo pide WeeklyData
+        # Handle NaT values to avoid strftime errors on invalid/missing dates
+        for col in df.select_dtypes(include=["datetime64[ns]", "datetime"]):
+            df[col] = df[col].apply(lambda x: x.strftime("%Y-%m-%d") if pd.notna(x) else None)
+
         WeeklyData.from_df(df)
         storage_manager.save_csv(df, "weekly.csv")
         # df.to_csv("data/weekly.csv", index=False)
@@ -255,6 +261,7 @@ async def upload_data(
         }
         
     except ValidationError as e:
+        print("VALIDATION ERROR:", e.errors())
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Error de validación de datos: {e.errors()}"
@@ -311,16 +318,24 @@ async def download_template():
     """
     Genera y descarga una plantilla de Excel con el formato correcto.
     """
+    # Get all real complexity names from centralized mapper
+    complejidades = ComplexityMapper.get_all_real_names()
+    num_complejidades = len(complejidades)
+    
+    # Calcular el lunes de la semana pasada
+    today = datetime.now()
+    days_since_monday = today.weekday()  # 0 = lunes, 6 = domingo
+    last_monday = today - timedelta(days=days_since_monday + 7)
     
     data = {
-        'Complejidad': ['Alta', 'Baja', 'Media', 'Neonatología', 'Pediatría'],
-        'Demanda pacientes': [50, 30, 40, 15, 25],
-        'Estancia (días promedio)': [5.2, 3.8, 4, 8.2, 4],
-        'Pacientes no Qx': [30, 24, 40, 9, 75],
-        'Pacientes Qx': [20, 6, 10, 1, 25],
-        'Ingresos no urgentes': [45, 25, 75, 5, 6],
-        'Ingresos urgentes': [15, 5, 25, 5, 4],
-        'Fecha ingreso': [datetime.now().strftime('%Y-%m-%d')] * 5
+        'Complejidad': complejidades,
+        'Demanda pacientes': [50, 30, 40, 15, 25, 15, 25][:num_complejidades],
+        'Estancia (días promedio)': [5.2, 3.8, 4, 8.2, 4, 15, 25][:num_complejidades],
+        'Pacientes no Qx': [30, 24, 40, 9, 75, 15, 25][:num_complejidades],
+        'Pacientes Qx': [20, 6, 10, 1, 25, 15, 25][:num_complejidades],
+        'Ingresos no urgentes': [45, 25, 75, 5, 6, 15, 25][:num_complejidades],
+        'Ingresos urgentes': [15, 5, 25, 5, 4, 15, 25][:num_complejidades],
+        'Fecha ingreso': [last_monday.strftime('%Y-%m-%d')] * num_complejidades
     }
     
     df = pd.DataFrame(data)
@@ -391,7 +406,21 @@ async def get_last_date():
   try:
     # df = pd.read_csv("data/weekly.csv")
     df = storage_manager.load_csv("weekly.csv")
+    df["Fecha ingreso"] = pd.to_datetime(df["Fecha ingreso"], errors="coerce")
     last_date = df["Fecha ingreso"].max()
+    
+    # Check if last_date is NaT (all dates were invalid)
+    # Use is pd.NaT for scalar comparison to avoid type checker issues
+    if last_date is pd.NaT:
+      raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No se encontraron fechas válidas en los datos semanales"
+      )
+    
+    # sumar una semana completa
+  except HTTPException:
+    # Re-raise HTTPException as-is
+    raise
   except Exception as e:
     raise HTTPException(
       status_code=status.HTTP_404_NOT_FOUND,

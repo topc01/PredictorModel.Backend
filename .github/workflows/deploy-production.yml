@@ -2,7 +2,7 @@ name: Deploy to Production (Terraform Infrastructure)
 
 on:
   push:
-    branches: ["ready"]
+    branches: ["main"]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-production.yml"
@@ -10,7 +10,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: predictor-model-prod-backend
+  ECR_REPOSITORY_BACKEND: predictor-model-prod-backend
+  ECR_REPOSITORY_CELERY: predictor-model-prod-celery-worker
   ECS_CLUSTER: predictor-model-prod-cluster
   ECS_SERVICE: predictor-model-prod-backend-service
   CONTAINER_NAME: backend
@@ -50,23 +51,32 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push images to Amazon ECR
         id: build-image
         working-directory: ./backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "Building Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-          echo "Pushing image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "✅ Image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "Building Docker images..."
+          
+          # Build the image once
+          docker build -t temp-image:$IMAGE_TAG .
+          
+          # Tag and push backend image
+          docker tag temp-image:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          docker tag temp-image:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+          
+          # Tag and push celery-worker image (same image, different runtime command)
+          docker tag temp-image:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_CELERY:$IMAGE_TAG
+          docker tag temp-image:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_CELERY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_CELERY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_CELERY:latest
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Images pushed successfully"
 
       - name: Force new ECS deployment
         run: |
@@ -93,7 +103,8 @@ jobs:
         if: success()
         run: |
           echo "🎉 Deployment completed successfully!"
-          echo "Image: ${{ steps.build-image.outputs.image }}"
+          echo "Backend Image: ${{ steps.build-image.outputs.image }}"
+          echo "Celery Worker Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_CELERY }}:${{ github.sha }}"
           echo "Cluster: ${{ env.ECS_CLUSTER }}"
           echo "Service: ${{ env.ECS_SERVICE }}"
           echo "Region: ${{ env.AWS_REGION }}"

@@ -113,3 +113,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Ignore all pickled models
+**/*.pkl

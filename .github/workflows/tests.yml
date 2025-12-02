@@ -26,16 +26,19 @@ jobs:
           python-version: "3.12"
 
       - name: Installing uv
+        working-directory: ./backend
         run: |
           echo "Installing uv"
           pip install uv
 
       - name: Installing dependencies
+        working-directory: ./backend
         run: |
           echo "Installing dependencies"
           uv sync
 
       - name: Running tests
+        working-directory: ./backend
         run: |
           echo "Running tests"
           uv run pytest --cov=app --cov-report=term-missing -v

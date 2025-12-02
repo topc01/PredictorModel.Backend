@@ -4,7 +4,7 @@ Pipeline routes for data cleaning and processing.
 These endpoints handle the initial Excel processing and data cleaning pipeline.
 """
 
-from fastapi import APIRouter, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, File, UploadFile, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Optional
@@ -15,6 +15,8 @@ from datetime import datetime
 import os
 from ..pipeline import procesar_excel_completo
 from ..utils.storage import storage_manager
+from ..core.auth import require_role, get_current_user
+from ..models.user import UserRole
 
 
 router = APIRouter(
@@ -53,13 +55,17 @@ class PipelineProcessResponse(BaseModel):
                     "Baja": "Procesada exitosamente",
                     "Media": "Procesada exitosamente",
                     "Neonatología": "Datos insuficientes",
-                    "Pediatría": "Procesada exitosamente"
+                    "Pediatría": "Procesada exitosamente",
+                    "Inte. Pediátrico": "Procesada exitosamente",
+                    "Maternidad": "Procesada exitosamente"
                 },
                 "archivos_generados": {
                     "Alta": "./data/Alta.csv",
                     "Baja": "./data/Baja.csv",
                     "Media": "./data/Media.csv",
-                    "Pediatría": "./data/Pediatría.csv"
+                    "Pediatría": "./data/Pediatría.csv",
+                    "Inte. Pediátrico": "./data/IntePediátrico.csv",
+                    "Maternidad": "./data/Maternidad.csv"
                 },
                 "estadisticas": {
                     "Alta": {"filas": 120, "columnas": 18},
@@ -129,7 +135,8 @@ async def process_excel(
     file: UploadFile = File(
         ..., 
         description="Archivo Excel (.xlsx o .xls) con datos hospitalarios crudos"
-    )
+    ),
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
 ):
     """
     Procesa un archivo Excel inicial con datos hospitalarios.
@@ -384,7 +391,9 @@ async def process_excel(
         }
     }
 )
-async def pipeline_status():
+async def pipeline_status(
+    current_user: dict = Depends(require_role(UserRole.VIEWER))
+):
     """
     Obtiene el estado del pipeline y archivos disponibles.
     """

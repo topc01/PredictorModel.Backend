@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 import os
-from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
+from src.utils.storage import check_bucket_access, get_bucket_info, storage_manager
 
 router = APIRouter(
     tags=["Storage"],
@@ -90,7 +88,6 @@ async def storage_health_check():
     # Get bucket names from environment variables
     files_bucket = os.getenv('S3_FILES_BUCKET')
     data_bucket = os.getenv('S3_DATA_BUCKET')
-    storage_type = storage_manager.storage_type
     
     # Check if environment variables are set
     if not files_bucket or not data_bucket:
@@ -125,10 +122,14 @@ async def storage_health_check():
                 "exists": data_check['exists'],
             }
         },
-        "using_storage": storage_type,
+        "storage_manager": {
+          "storage_type": storage_manager.storage_type,
+          "base_path": storage_manager.base_path,
+        },
         "status": "",
         "message": "",
     }
+    return response
     
     # Add errors if present
     if files_check['error']:
@@ -156,58 +157,3 @@ async def storage_health_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=response
         )
-
-class WeekDeleteByDateRequest(BaseModel):
-    filename: str = "dataset.csv"
-    date: str = "2025-12-01"  # día que ingresa el usuario, formato YYYY-MM-DD
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "filename": "dataset.csv",
-                "date": "2025-12-01"
-            }
-        }
-    )
-
-@router.delete(
-    "/storage/week-by-date",
-    status_code=status.HTTP_200_OK,
-    summary="Eliminar semana a partir de una fecha",
-    description=(
-        "Recibe un día (YYYY-MM-DD) y elimina del CSV todas las filas cuya "
-        "semana_año corresponda a la semana ISO de esa fecha (lunes a domingo)."
-    ),
-)
-async def delete_week_by_date(payload: WeekDeleteByDateRequest = Body(...)):
-    try:
-        removed = storage_manager.remove_week_by_date(
-            filename=payload.filename,
-            date_str=payload.date,
-        )
-    except FileNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": f"El archivo {payload.filename} no existe: {e}"},
-        )
-    except KeyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"message": str(e)},
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"message": str(e)},
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"message": f"Error al eliminar semana: {e}"},
-        )
-
-    return {
-        "filename": payload.filename,
-        "date": payload.date,
-        "rows_removed": removed,
-    }
