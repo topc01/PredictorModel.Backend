@@ -13,6 +13,7 @@ import boto3
 from botocore.exceptions import ClientError, BotoCoreError
 from dotenv import load_dotenv
 import logging
+from datetime import datetime
 
 # Load environment variables from .env file (for local development)
 load_dotenv()
@@ -148,79 +149,59 @@ class StorageManager:
                 results[filename] = path
         return results
 
-    def remove_week_from_file(self, filename: str, semana_año: str, column_name: str = "semana_año") -> int:
+    def remove_week_from_file(
+        self,
+        filename: str,
+        semana_año: str ) -> int:
         """
-        Remove rows corresponding to a specific week from a CSV file.
-        
-        Args:
-            filename: Name of the CSV file
-            semana_año: Week identifier to remove (e.g., '2025-31')
-            column_name: Name of the column containing week identifiers
-        Returns:
-            Number of rows removed
+        Elimina todas las filas de un CSV donde `column_name == semana_año`
         """
+
         df = self.load_csv(filename)
+        column_name: str = "semana_año"
         if column_name not in df.columns:
             raise KeyError(f"Column '{column_name}' not found in {filename}")
-        
-        mask = df[column_name] == semana_año
+
+        mask = df[column_name].astype(str) == str(semana_año)
         removed = int(mask.sum())
+
         if removed == 0:
             return 0
-        df_filtered = df[~mask].reset_index(drop=True)
-        
+
+        df_filtered = df.loc[~mask].reset_index(drop=True)
         self.save_csv(df_filtered, filename)
+
         return removed
 
-    def remove_last_row_from_file(self, filename: str, n: int = 1) -> int:
+    def remove_week_by_date(
+        self,
+        filename: str,
+        date_str: str ) -> int:
         """
-        Remove the last n rows from a CSV file.
-        
-        Args:
-            filename: Name of the CSV file
-            n: Number of rows to remove from the end
-        Returns:
-            Number of rows removed
+        Elimina la semana completa (lunes a domingo) correspondiente a `date_str`,
+        asumiendo que el CSV tiene una columna `semana_año` en formato 'YYYY-WW'
+        (semana ISO, que parte en lunes).
+
+        Ejemplo:
+            date_str = '2025-12-01' -> semana ISO (year, week) -> '2025-49'
+            Se eliminan todas las filas donde semana_año == '2025-49'.
         """
-        df = self.load_csv(filename)
-        if df.empty:
-            return 0
+        column_name: str = "semana_año"
+        try:
+            d = datetime.fromisoformat(date_str).date()
+        except ValueError:
+            raise ValueError(f"Fecha inválida: {date_str}. Se espera formato YYYY-MM-DD")
 
-        # Antes de truncar, ordenar por columna de semana ('semana_año') si existe
-        if 'semana_año' in df.columns:
-            try:
-                parts = df['semana_año'].astype(str).str.split('-')
-                year = parts.str[0].astype(int)
-                week = parts.str[1].astype(int)
-                df = df.assign(_sort_year=year, _sort_week=week)
-                df = df.sort_values(['_sort_year', '_sort_week']).drop(columns=['_sort_year', '_sort_week']).reset_index(drop=True)
-            except Exception:
-                df = df.sort_values('semana_año').reset_index(drop=True)
+        iso = d.isocalendar()  # (year, week, weekday)
+        year = iso.year
+        week = iso.week
+        semana_año = f"{year}-{week:02d}"
 
-        else:
-            date_cols = ['Fecha ingreso', 'fecha ingreso completa', 'fecha_ingreso_completa']
-            chosen = None
-            for c in date_cols:
-                if c in df.columns:
-                    chosen = c
-                    break
-
-            if chosen:
-                try:
-                    df[chosen] = pd.to_datetime(df[chosen], errors='coerce')
-                    df = df.sort_values(chosen).reset_index(drop=True)
-                except Exception:
-                    # si falla la conversión, no ordenar
-                    pass
-
-        n = min(n, len(df))
-        if n == 0:
-            return 0
-
-        new_df = df.iloc[:-n].reset_index(drop=True)
-        removed = len(df) - len(new_df)
-        self.save_csv(new_df, filename)
-        return removed
+        # Reutilizamos el método anterior
+        return self.remove_week_from_file(
+            filename=filename,
+            semana_año=semana_año,
+        )
 
 # Global storage manager instance
 # Can be configured via environment variables

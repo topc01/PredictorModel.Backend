@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Body, File, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 import os
 from app.utils.storage import check_bucket_access, get_bucket_info, storage_manager
@@ -157,47 +157,57 @@ async def storage_health_check():
             detail=response
         )
 
-class WeekDeleteRequest(BaseModel):
+class WeekDeleteByDateRequest(BaseModel):
     filename: str = "dataset.csv"
-    semana_año: str = "2025-31"
-    column_name: Optional[str] = "semana_año"
+    date: str = "2025-12-01"  # día que ingresa el usuario, formato YYYY-MM-DD
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "filename": "dataset.csv",
+                "date": "2025-12-01"
+            }
+        }
+    )
 
 @router.delete(
-    "/storage/week",
+    "/storage/week-by-date",
     status_code=status.HTTP_200_OK,
-    summary="Eliminar una semana de un CSV",
-    description="Elimina las filas que correspondan a `semana_año` dentro del CSV indicado (por defecto `dataset.csv`).",
+    summary="Eliminar semana a partir de una fecha",
+    description=(
+        "Recibe un día (YYYY-MM-DD) y elimina del CSV todas las filas cuya "
+        "semana_año corresponda a la semana ISO de esa fecha (lunes a domingo)."
+    ),
 )
-async def delete_week(payload: WeekDeleteRequest = Body(...)):
+async def delete_week_by_date(payload: WeekDeleteByDateRequest = Body(...)):
     try:
-        removed = storage_manager.remove_week_from_file(payload.filename, payload.semana_año, payload.column_name)
+        removed = storage_manager.remove_week_by_date(
+            filename=payload.filename,
+            date_str=payload.date,
+        )
     except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": f"El archivo {payload.filename} no existe: {e}"},
+        )
     except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": str(e)})
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"message": str(e)})
-
-    return {"filename": payload.filename, "semana_año": payload.semana_año, "rows_removed": removed}
-
-class LastRowsDeleteRequest(BaseModel):
-    filename: str = "dataset.csv"
-    n_rows: int = 1
-
-@router.delete(
-    "/storage/last-rows",
-    status_code=status.HTTP_200_OK,
-    summary="Eliminar las últimas n filas de un CSV",
-    description="Elimina las últimas `n_rows` filas del CSV indicado (por defecto `dataset.csv`). CSV se encuentra ordenado según semana_año.",
-)
-async def delete_last_rows(payload: LastRowsDeleteRequest = Body(...)):
-    try:
-        removed = storage_manager.remove_last_row_from_file(payload.filename, payload.n_rows)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": str(e)},
+        )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": str(e)},
+        )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"message": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"Error al eliminar semana: {e}"},
+        )
 
-    return {"filename": payload.filename, "rows_removed": removed}
+    return {
+        "filename": payload.filename,
+        "date": payload.date,
+        "rows_removed": removed,
+    }
