@@ -25,17 +25,20 @@ async def get_current_user_info(
     auth0_user_id = current_user["auth0_user_id"]
     name = current_user["name"]
     
-    # Get user data from Auth0 Management API
+    # Extract the user's access token
+    user_token = current_user.get("access_token")
+    
+    # Get user data from Auth0 Management API using the user's token
     role = UserRole.VIEWER  # Default role
     try:
-        auth0_user = auth0_client.get_user_by_email(email)
+        auth0_user = auth0_client.get_user_by_email(email, user_token)
         if auth0_user:
             # Use name from Auth0 if available
             if auth0_user.get("name"):
                 name = auth0_user.get("name")
             
             # Get role from Auth0 metadata
-            role_str = auth0_client.get_user_role(email)
+            role_str = auth0_client.get_user_role(email, user_token)
             if role_str:
                 role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
     except Exception as e:
@@ -48,38 +51,4 @@ async def get_current_user_info(
         role=role.value,
         auth0_user_id=auth0_user_id
     )
-
-
-@router.post("/sync")
-async def sync_user(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get current user information from Auth0 (no longer syncs to Redis)."""
-    email = current_user["email"]
-    auth0_user_id = current_user["auth0_user_id"]
-    name = current_user["name"]
-    
-    # Get role from Auth0
-    role = UserRole.VIEWER
-    try:
-        role_str = auth0_client.get_user_role(email)
-        if role_str:
-            role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
-        
-        # Get updated name from Auth0 if available
-        auth0_user = auth0_client.get_user_by_email(email)
-        if auth0_user and auth0_user.get("name"):
-            name = auth0_user.get("name")
-    except Exception as e:
-        print(f"Error getting user from Auth0: {e}")
-    
-    return {
-        "message": "User information retrieved from Auth0",
-        "user": {
-            "email": email,
-            "name": name,
-            "role": role.value,
-            "auth0_user_id": auth0_user_id
-        }
-    }
 
