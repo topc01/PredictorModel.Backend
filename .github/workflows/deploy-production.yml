@@ -32,7 +32,6 @@ jobs:
           uv run pytest --cov=app --cov-report=term-missing -v
 
   deploy:
-    if: false
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment: production
