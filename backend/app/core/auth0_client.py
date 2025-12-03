@@ -33,13 +33,9 @@ class Auth0ManagementClient:
         self._access_token = data["access_token"]
         return self._access_token
     
-    def _get_headers(self, user_token: Optional[str] = None) -> Dict[str, str]:
-        """Get headers with access token.
-        
-        Args:
-            user_token: Optional user access token. If provided, uses this instead of M2M token.
-        """
-        token = user_token if user_token else self.get_access_token()
+    def _get_headers(self) -> Dict[str, str]:
+        """Get headers with access token."""
+        token = self.get_access_token()
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -70,17 +66,12 @@ class Auth0ManagementClient:
         response.raise_for_status()
         return response.json()
     
-    def get_user_by_email(self, email: str, user_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Get user by email from Auth0.
-        
-        Args:
-            email: User email to search for
-            user_token: Optional user access token. If provided, uses this instead of M2M token.
-        """
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email from Auth0."""
         url = f"https://{self.domain}/api/v2/users-by-email"
         params = {"email": email}
         
-        response = httpx.get(url, params=params, headers=self._get_headers(user_token))
+        response = httpx.get(url, params=params, headers=self._get_headers())
         response.raise_for_status()
         users = response.json()
         
@@ -128,15 +119,10 @@ class Auth0ManagementClient:
         response.raise_for_status()
         return response.json()
     
-    def get_user_role(self, email: str, user_token: Optional[str] = None) -> Optional[str]:
-        """Get user role from Auth0 app_metadata.
-        
-        Args:
-            email: User email
-            user_token: Optional user access token. If provided, uses this instead of M2M token.
-        """
+    def get_user_role(self, email: str) -> Optional[str]:
+        """Get user role from Auth0 app_metadata."""
         try:
-            auth0_user = self.get_user_by_email(email, user_token)
+            auth0_user = self.get_user_by_email(email)
             if auth0_user:
                 # Check app_metadata first, then user_metadata as fallback
                 app_metadata = auth0_user.get("app_metadata", {})

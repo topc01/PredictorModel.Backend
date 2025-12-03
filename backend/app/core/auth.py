@@ -165,8 +165,7 @@ def get_current_user(
         "email": email,
         "auth0_user_id": sub,
         "name": payload.get("name") or payload.get("https://name") or email.split("@")[0],
-        "payload": payload,
-        "access_token": token  # Include the token for reuse
+        "payload": payload
     }
 
 
@@ -198,7 +197,6 @@ def get_current_user_with_role(
     """Get current user with role from Auth0 Management API."""
     payload = current_user["payload"]
     email = current_user["email"]
-    user_token = current_user.get("access_token")
     
     # Try to get role from token first
     role_from_token = get_user_role_from_token(payload)
@@ -207,7 +205,7 @@ def get_current_user_with_role(
     # This is necessary because tokens don't always include app_metadata
     role = None
     try:
-        role_str = auth0_client.get_user_role(email, user_token)
+        role_str = auth0_client.get_user_role(email)
         if role_str:
             role = UserRole.ADMIN if role_str == "admin" else UserRole.VIEWER
     except Exception:
