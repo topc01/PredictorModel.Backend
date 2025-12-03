@@ -318,9 +318,7 @@ async def upload_data(
         }
     }
 )
-async def download_template(
-    current_user: dict = Depends(require_role(UserRole.VIEWER))
-):
+async def download_template():
     """
     Genera y descarga una plantilla de Excel con el formato correcto.
     """
