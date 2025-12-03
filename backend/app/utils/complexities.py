@@ -17,30 +17,29 @@ class ComplexityMapper:
     ┌─────────────────────┬──────────────────────┐
     │ API Label           │ Real Name            │
     ├─────────────────────┼──────────────────────┤
-    │ Baja                │ Baja                 │
-    │ Media               │ Media                │
-    │ Alta                │ Alta                 │
-    │ Neonatologia        │ Neonatología         │
-    │ Pediatria           │ Pediatría            │
-    │ IntePediatrico      │ Inte. Pediátrico     │
-    │ Maternidad          │ Maternidad           │
+    │ baja                │ Baja                 │
+    │ media               │ Media                │
+    │ alta                │ Alta                 │
+    │ neonatologia        │ Neonatología         │
+    │ pediatria           │ Pediatría            │
+    │ intepediatrico      │ Inte. Pediátrico     │
+    │ maternidad          │ Maternidad           │
     └─────────────────────┴──────────────────────┘
     """
     
-    # Mapping: real_name -> label (for API)
+    # Mapping: real_name -> label (for API) - ALL LOWERCASE
     _COMPLEXITY_MAP = {
-        "Baja": "Baja",
-        "Media": "Media",
-        "Alta": "Alta",
-        "Neonatología": "Neonatologia",
-        "Pediatría": "Pediatria",
-        "Inte. Pediátrico": "IntePediatrico",
-        "Maternidad": "Maternidad"
+        "Baja": "baja",
+        "Media": "media",
+        "Alta": "alta",
+        "Neonatología": "neonatologia",
+        "Pediatría": "pediatria",
+        "Inte. Pediátrico": "intepediatrico",
+        "Maternidad": "maternidad"
     }
     
     # Reverse mapping: label -> real_name (for internal use)
     _REVERSE_MAP = {v: k for k, v in _COMPLEXITY_MAP.items()}
-    _REVERSE_MAP_UNDERCASE = {v.lower(): k for k, v in _COMPLEXITY_MAP.items()}
     
     @classmethod
     def to_label(cls, real_name: str) -> str:
@@ -87,7 +86,7 @@ class ComplexityMapper:
     @classmethod
     def is_valid_label(cls, label: str) -> str:
         """Check if a label is valid."""
-        is_valid = label in cls._REVERSE_MAP or label in cls._REVERSE_MAP_UNDERCASE
+        is_valid = label in cls._REVERSE_MAP
         if not is_valid:
             raise HTTPException(
               status_code = 422,
