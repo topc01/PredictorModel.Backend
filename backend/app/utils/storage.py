@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 import logging
 from datetime import datetime
 
+from app.core.config import settings
+
 # Load environment variables from .env file (for local development)
 load_dotenv()
 
@@ -208,14 +210,10 @@ class StorageManager:
     def list_files(self):
         return self.s3_client.list_objects_v2(Bucket=self.s3_bucket)
 
-# Global storage manager instance
-# Can be configured via environment variables
-_s3_bucket = os.getenv("S3_FILES_BUCKET", None)
-_env = os.getenv("ENV", "prod")
-
+# Global storage manager instance using centralized settings
 storage_manager = StorageManager(
-    env=_env,
-    s3_bucket=_s3_bucket
+    env=settings.env,
+    s3_bucket=settings.s3_files_bucket
 )
 
 

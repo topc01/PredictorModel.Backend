@@ -14,6 +14,7 @@ from io import BytesIO
 
 from app.utils.storage import StorageManager
 from app.utils.complexities import ComplexityMapper
+from app.core.config import settings
 
 load_dotenv()
 
@@ -543,11 +544,8 @@ s3://tu-bucket/models/
             raise FileNotFoundError(f"Feature names not found in S3: s3://{self.s3_bucket}/{feature_names_path}")
 
 
-
-_s3_bucket = os.getenv("S3_FILES_BUCKET", None)
-_env = os.getenv("ENV", "local")
-
+# Global version manager instance using centralized settings
 version_manager = VersionManager(
-    env=_env,
-    s3_bucket=_s3_bucket
+    env=settings.env,
+    s3_bucket=settings.s3_files_bucket
 )

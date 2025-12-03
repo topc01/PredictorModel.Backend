@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     # AWS (optional)
     aws_region: str = "us-east-1"
     s3_files_bucket: str = ""
-    s3_data_bucket: str = ""
+
+    env: str = "prod"
     
     # Auth0
     auth0_domain: str = ""

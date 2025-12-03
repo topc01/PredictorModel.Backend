@@ -1,4 +1,4 @@
-from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -9,6 +9,7 @@ import time
 from app.routes import router
 from app.core.config import settings
 from app.core.redis import close_redis_client, get_redis_client
+from app.core.auth import get_current_user
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,10 +51,36 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
+    """Root endpoint with basic API info."""
     return {
         "message": "Predictor Model Backend API",
         "version": settings.app_version,
         "docs": "/docs"
+    }
+
+
+@app.get("/debug/settings")
+async def debug_settings(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint showing all settings (authenticated users only)."""
+    # Get all settings as dict
+    settings_dict = settings.model_dump()
+    
+    # Mask sensitive values
+    sensitive_keys = [
+        "auth0_management_client_secret",
+        "redis_url",
+        "celery_broker_url", 
+        "celery_result_backend"
+    ]
+    
+    for key in sensitive_keys:
+        if key in settings_dict and settings_dict[key]:
+            # Show only first 10 chars + "..."
+            settings_dict[key] = settings_dict[key][:10] + "..." if len(settings_dict[key]) > 10 else "***"
+    
+    return {
+        "user": current_user.get("email"),
+        "settings": settings_dict
     }
 
 
