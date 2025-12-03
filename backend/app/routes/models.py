@@ -194,6 +194,7 @@ async def get_models_by_complexity(
     current_user: dict = Depends(require_role(UserRole.VIEWER))
 ):
     """Get models versions by complexity."""
+    complexity = complexity.lower()
     ComplexityMapper.is_valid_label(complexity)
     return version_manager.get_complexity_versions(complexity)
 
