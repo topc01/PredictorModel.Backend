@@ -121,7 +121,6 @@ class StorageManager:
         Returns:
             True if file exists, False otherwise
         """
-        s3_key = f"{self.base_dir}/{filename}"
         try:
             if self.env == "local":
                 logger.info(f"Checking local file: {os.path.join(self.base_dir, filename)}")
@@ -129,8 +128,8 @@ class StorageManager:
                 local_path = os.path.join(self.base_dir, filename)
                 return os.path.exists(local_path)
             
-            logger.info(f"Checking S3 file: s3://{self.s3_bucket}/{s3_key}")
-            self.s3_client.head_object(Bucket=self.s3_bucket, Key=s3_key)
+            logger.info(f"Checking S3 file: s3://{self.s3_bucket}/{filename}")
+            self.s3_client.head_object(Bucket=self.s3_bucket, Key=filename)
             return True
         except:
             return False
