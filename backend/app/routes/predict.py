@@ -65,6 +65,7 @@ async def predict_complexity(
     Args:
         complexity: Label de la complejidad (baja, media, alta, neonatologia, pediatria, intepediatrico, maternidad)
     """
+    complexity = complexity.lower()
     ComplexityMapper.is_valid_label(complexity)
     
     try:

@@ -263,6 +263,7 @@ async def get_active_model_by_complexity(
     complexity: str,
     current_user: dict = Depends(require_role(UserRole.VIEWER))
 ):
+    complexity = complexity.lower()
     """Get active version for a specific complexity (or latest if none set)."""
     # Validate complexity
     ComplexityMapper.is_valid_label(complexity)
@@ -322,6 +323,7 @@ async def get_version_details(
     version: str,
     current_user: dict = Depends(require_role(UserRole.VIEWER))
 ):
+    complexity = complexity.lower()
     """Get metadata for a specific version."""
     # Validate complexity
     ComplexityMapper.is_valid_label(complexity)
@@ -388,6 +390,7 @@ async def activate_model_version(
 ):
     """Activate a specific model version."""
     # Validate complexity
+    complexity = complexity.lower()
     ComplexityMapper.is_valid_label(complexity)
 
     version = request.get("version")
